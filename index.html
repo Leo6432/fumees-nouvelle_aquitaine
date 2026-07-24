@@ -77,11 +77,17 @@
     padding:6px 12px;font-size:.82rem;cursor:pointer;
   }
   .mode button.active{background:var(--ember);color:#fff}
-  #forecast{flex:1;min-height:0;display:none;position:relative}
-  #forecast iframe{width:100%;height:100%;border:0;display:block}
-  body.forecast #map{display:none}
-  body.forecast #forecast{display:block}
   body.forecast .sat-only{display:none}
+  #cams-controls input[type="range"]{width:180px}
+  #time-label{color:var(--paper);font-variant-numeric:tabular-nums;min-width:150px;display:inline-block}
+  #legend{
+    position:absolute;left:12px;bottom:26px;z-index:1000;display:none;
+    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
+    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
+  }
+  body.forecast #legend{display:block}
+  #legend b{color:var(--paper);font-weight:600}
+  #legend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 </style>
 </head>
 <body>
@@ -106,22 +112,25 @@
     <label class="toggle sat-only"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
     <span class="sat-only"><label for="op">Opacité satellite</label>
     <input type="range" id="op" min="20" max="100" value="100"></span>
-    <span id="cams-controls" style="display:none"><label for="pollutant">Couche</label>
-    <select id="pollutant">
-      <option value="pm2p5">Particules fines PM2.5</option>
-      <option value="cosc">Monoxyde de carbone (CO)</option>
-      <option value="aod550">Aérosols (épaisseur optique)</option>
-    </select></span>
+    <span id="cams-controls" style="display:none"><label for="time-slider">Heure</label>
+    <input type="range" id="time-slider" min="0" max="47" value="0" step="1">
+    <span id="time-label">—</span></span>
   </div>
 </header>
 
 <div id="map"></div>
-<div id="forecast"></div>
+<div id="legend"><b>PM2.5 prévues (µg/m³)</b><br>
+  <span class="sw" style="background:#3fae6a"></span>0–10 bon<br>
+  <span class="sw" style="background:#d9d54a"></span>10–20 moyen<br>
+  <span class="sw" style="background:#f39c2c"></span>20–35 dégradé<br>
+  <span class="sw" style="background:#e0442e"></span>35–60 mauvais<br>
+  <span class="sw" style="background:#8e44ad"></span>&gt; 60 très mauvais
+</div>
 <div class="notice" id="notice">Image du jour pas encore disponible (les satellites passent vers 10h30–13h30, l'image arrive quelques heures après). Essayez la veille.</div>
 
 <footer>
   Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS 375 m.
-  Prévision : Windy.com avec le modèle Copernicus CAMS (particules et gaz, actualisé plusieurs fois par jour, avec animation heure par heure).
+  Prévision : particules fines PM2.5 du modèle Copernicus CAMS, via l'API <a href="https://open-meteo.com/">Open-Meteo</a> (48 h, pas horaire).
   Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>.
 </footer>
 
@@ -202,49 +211,117 @@
 
   rebuild();
 
-  // ---- Mode Prévision : embed Windy (modèle Copernicus CAMS) ----
-  const forecastDiv = document.getElementById('forecast');
+  // ---- Mode Prévision : PM2.5 du modèle Copernicus CAMS via Open-Meteo ----
   const btnSat = document.getElementById('mode-sat');
   const btnCams = document.getElementById('mode-cams');
   const camsControls = document.getElementById('cams-controls');
+  const slider = document.getElementById('time-slider');
+  const timeLabel = document.getElementById('time-label');
+  const notice = document.getElementById('notice');
 
-  function windySrc(overlay) {
-    return 'https://embed.windy.com/embed2.html?lat=44.9&lon=0.0&detailLat=44.9&detailLon=0.0' +
-      '&width=650&height=450&zoom=7&level=surface' +
-      '&overlay=' + overlay + '&product=cams' +
-      '&menu=&message=true&marker=&calendar=now&pressure=' +
-      '&type=map&location=coordinates&detail=' +
-      '&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1';
+  // Grille couvrant la Nouvelle-Aquitaine et ses abords
+  const STEP = 0.4;
+  const LAT0 = 42.6, LAT1 = 47.2, LON0 = -2.0, LON1 = 2.6;
+  const gridLats = [], gridLons = [];
+  for (let la = LAT0; la <= LAT1; la += STEP)
+    for (let lo = LON0; lo <= LON1; lo += STEP) {
+      gridLats.push(la.toFixed(2));
+      gridLons.push(lo.toFixed(2));
+    }
+
+  let pmLayer = null;   // groupe de rectangles colorés
+  let pmCells = [];     // rectangles, alignés avec les points de la grille
+  let pmData = null;    // valeurs pm2_5 par point : pmData[i][h]
+  let pmTimes = null;   // horodatages communs
+
+  function pmColor(v) {
+    if (v == null) return null;
+    if (v < 10) return '#3fae6a';
+    if (v < 20) return '#d9d54a';
+    if (v < 35) return '#f39c2c';
+    if (v < 60) return '#e0442e';
+    return '#8e44ad';
   }
 
-  function windyLink(overlay) {
-    return 'https://www.windy.com/?' + overlay + ',44.9,0.0,7';
+  async function loadForecast() {
+    notice.textContent = 'Chargement de la prévision CAMS…';
+    notice.style.display = 'block';
+    try {
+      const url = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
+        '?latitude=' + gridLats.join(',') + '&longitude=' + gridLons.join(',') +
+        '&hourly=pm2_5&forecast_days=2&timezone=Europe%2FParis';
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      let data = await resp.json();
+      if (!Array.isArray(data)) data = [data];
+
+      pmTimes = data[0].hourly.time;
+      pmData = data.map(pt => pt.hourly.pm2_5);
+
+      pmLayer = L.layerGroup();
+      pmCells = [];
+      const h = STEP / 2;
+      data.forEach((pt, i) => {
+        const rect = L.rectangle(
+          [[pt.latitude - h, pt.longitude - h], [pt.latitude + h, pt.longitude + h]],
+          { stroke: false, fillOpacity: 0.45, fillColor: '#3fae6a', interactive: false }
+        );
+        pmCells.push(rect);
+        pmLayer.addLayer(rect);
+      });
+
+      slider.max = pmTimes.length - 1;
+      // Démarrer à l'heure actuelle
+      const nowIdx = pmTimes.findIndex(t => new Date(t) >= new Date());
+      slider.value = Math.max(0, nowIdx);
+      notice.style.display = 'none';
+      showHour(+slider.value);
+      pmLayer.addTo(map);
+    } catch (err) {
+      pmData = null;
+      notice.textContent = 'Impossible de charger la prévision (Open-Meteo). Réessaie dans un instant.';
+      notice.style.display = 'block';
+    }
   }
 
-  function loadForecast() {
-    const overlay = document.getElementById('pollutant').value;
-    forecastDiv.innerHTML =
-      '<a href="' + windyLink(overlay) + '" target="_blank" rel="noopener" ' +
-      'style="position:absolute;top:10px;right:10px;z-index:10;background:var(--panel);' +
-      'color:var(--paper);padding:6px 10px;border-radius:6px;font-size:.78rem;' +
-      'text-decoration:none;border:1px solid #38424e">Ouvrir sur Windy ↗</a>' +
-      '<iframe src="' + windySrc(overlay) +
-      '" title="Prévision fumée CAMS (Windy)" loading="lazy"></iframe>';
+  function showHour(idx) {
+    if (!pmData) return;
+    const dt = new Date(pmTimes[idx]);
+    timeLabel.textContent = dt.toLocaleString('fr-FR', {
+      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+    pmCells.forEach((rect, i) => {
+      const c = pmColor(pmData[i] ? pmData[i][idx] : null);
+      rect.setStyle(c ? { fillColor: c, fillOpacity: 0.45 } : { fillOpacity: 0 });
+    });
   }
+
+  slider.addEventListener('input', () => showHour(+slider.value));
 
   function setMode(cams) {
     document.body.classList.toggle('forecast', cams);
     btnSat.classList.toggle('active', !cams);
     btnCams.classList.toggle('active', cams);
     camsControls.style.display = cams ? '' : 'none';
-    document.getElementById('notice').style.display = 'none';
-    if (cams && !forecastDiv.firstChild) loadForecast();
-    if (!cams) map.invalidateSize();
+    notice.style.display = 'none';
+
+    if (cams) {
+      // Fond OSM seul + grille PM2.5 (les foyers restent visibles)
+      if (satLayer) map.removeLayer(satLayer);
+      if (!map.hasLayer(osm)) osm.addTo(map);
+      if (pmData) { pmLayer.addTo(map); showHour(+slider.value); }
+      else loadForecast();
+      if (fireLayer && map.hasLayer(fireLayer)) fireLayer.bringToFront();
+    } else {
+      if (pmLayer) map.removeLayer(pmLayer);
+      const wantLabels = document.getElementById('labels').checked;
+      if (!wantLabels && map.hasLayer(osm)) map.removeLayer(osm);
+      rebuild();
+    }
   }
 
   btnSat.addEventListener('click', () => setMode(false));
   btnCams.addEventListener('click', () => setMode(true));
-  document.getElementById('pollutant').addEventListener('change', loadForecast);
 </script>
 </body>
 </html>
