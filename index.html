@@ -199,8 +199,9 @@
     if (fireLayer) { map.removeLayer(fireLayer); fireLayer = null; }
     if (!document.getElementById('fires').checked) return;
 
-    if (FIRMS_KEY === 'COLLE_TA_CLE_ICI' || !FIRMS_KEY) {
-      notice.textContent = "Foyers en direct : il manque la clé FIRMS (gratuite). " +
+    // La clé est une suite de 32 caractères hexadécimaux ; sinon elle est absente ou mal collée
+    if (!/^[0-9a-f]{32}$/i.test(FIRMS_KEY)) {
+      notice.textContent = "Foyers en direct : clé FIRMS absente ou mal collée. " +
         "Voir les instructions dans le code (const FIRMS_KEY).";
       notice.style.display = 'block';
       return;
@@ -373,9 +374,11 @@
   loadWind();
 
   // ==== Stations PM2.5 : mesures officielles (réseau AASQA/Atmo via OpenAQ) ====
-  // Clé gratuite : crée un compte sur https://explore.openaq.org/register
-  // puis copie ta clé API (menu du compte) entre les guillemets ci-dessous.
-  const OPENAQ_KEY = '6d1d3ac5699d5e07412f5aa8c5062bdb19fae736291b23732c16c2fd1decd88b';
+  // Les appels passent par un proxy Cloudflare Worker qui détient la clé API :
+  // elle n'apparaît ni ici, ni dans le dépôt.
+  // Le slash final éventuel est retiré automatiquement.
+  const OPENAQ_PROXY = 'https://fumees-openaq.nicolaslecorvec.workers.dev'
+    .replace(/\/+$/, '');
 
   const pmLegend = document.getElementById('pmlegend');
   let stationLayer = null;
@@ -394,28 +397,27 @@
     pmLegend.style.display = on ? '' : 'none';
     if (!on) return;
 
-    if (OPENAQ_KEY === 'COLLE_TA_CLE_OPENAQ_ICI' || !OPENAQ_KEY) {
+    if (!OPENAQ_PROXY.includes('workers.dev') && !OPENAQ_PROXY.startsWith('https://')) {
       pmLegend.style.display = 'none';
-      notice.textContent = "Stations PM2.5 : il manque la clé OpenAQ (gratuite). " +
-        "Voir les instructions dans le code (const OPENAQ_KEY).";
+      notice.textContent = "Stations PM2.5 : l'URL du proxy Cloudflare semble incorrecte " +
+        "(const OPENAQ_PROXY).";
       notice.style.display = 'block';
       return;
     }
 
     try {
-      const headers = { 'X-API-Key': OPENAQ_KEY };
       // 1) Stations mesurant les PM2.5 dans la zone
       const locResp = await fetch(
-        'https://api.openaq.org/v3/locations?bbox=-2.0,42.6,2.6,47.2' +
-        '&parameters_id=2&monitor=true&limit=100', { headers });
+        OPENAQ_PROXY + '/v3/locations?bbox=-2.0,42.6,2.6,47.2' +
+        '&parameters_id=2&monitor=true&limit=100');
       if (!locResp.ok) throw new Error('HTTP ' + locResp.status);
       const locations = (await locResp.json()).results || [];
 
       // 2) Dernière valeur de chaque station (en parallèle, plafonné à 60)
       const subset = locations.slice(0, 60);
       const latest = await Promise.all(subset.map(loc =>
-        fetch('https://api.openaq.org/v3/locations/' + loc.id + '/latest',
-          { headers }).then(r => r.ok ? r.json() : null).catch(() => null)
+        fetch(OPENAQ_PROXY + '/v3/locations/' + loc.id + '/latest')
+          .then(r => r.ok ? r.json() : null).catch(() => null)
       ));
 
       stationLayer = L.layerGroup();
@@ -451,7 +453,7 @@
       }
     } catch (err) {
       pmLegend.style.display = 'none';
-      notice.textContent = 'Impossible de charger les stations (clé OpenAQ invalide ou quota).';
+      notice.textContent = 'Impossible de charger les stations (proxy indisponible ou quota).';
       notice.style.display = 'block';
       setTimeout(() => { notice.style.display = 'none'; }, 8000);
     }
