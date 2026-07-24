@@ -85,6 +85,13 @@
     background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
     padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
   }
+  #pmlegend{
+    position:absolute;left:12px;bottom:26px;z-index:1000;display:none;
+    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
+    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
+  }
+  #pmlegend b{color:var(--paper);font-weight:600}
+  #pmlegend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
   #atmolegend b{color:var(--paper);font-weight:600}
   #atmolegend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 </style>
@@ -104,7 +111,9 @@
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
     <label class="toggle"><input type="checkbox" id="fires" checked>Foyers (dernières 48 h)</label>
-    <label class="toggle"><input type="checkbox" id="atmo">Indice ATMO (communes)</label>
+    <label class="toggle"><input type="checkbox" id="stations">Stations particules (mesuré)</label>
+    <label class="toggle"><input type="checkbox" id="communes">Limites de communes</label>
+    <label class="toggle"><input type="checkbox" id="atmo">Indice ATMO (points)</label>
     <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
     <label class="toggle"><input type="checkbox" id="burnt">Surfaces brûlées 2026</label>
     <label class="toggle"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
@@ -125,7 +134,16 @@
   <span class="sw" style="background:#ff5050"></span>Mauvais<br>
   <span class="sw" style="background:#960032"></span>Très mauvais<br>
   <span class="sw" style="background:#872181"></span>Extrêmement mauvais<br>
-  <span class="sw" style="background:#888"></span>Événement (non représentatif)
+  <span class="sw" style="background:#888"></span>Événement (non représentatif)<br>
+  <small>Détail par commune : <a href="https://www.atmo-nouvelleaquitaine.org/air-commune" style="color:var(--paper)">carte officielle Atmo NA</a></small>
+</div>
+<div id="pmlegend"><b>Particules mesurées (µg/m³, PM2.5)</b><br>
+  <span class="sw" style="background:#3fae6a"></span>0–10 bon<br>
+  <span class="sw" style="background:#d9d54a"></span>10–20 moyen<br>
+  <span class="sw" style="background:#f39c2c"></span>20–35 dégradé<br>
+  <span class="sw" style="background:#e0442e"></span>35–60 mauvais<br>
+  <span class="sw" style="background:#8e44ad"></span>&gt; 60 très mauvais<br>
+  <small>Cliquer une station : PM2.5 et PM10</small>
 </div>
 <div class="notice" id="notice"></div>
 
@@ -137,9 +155,10 @@
     Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS ; rouge = moins de 6 h, orange = moins de 24 h).
     Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
-    Indice ATMO : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL).
+    Stations : mesures horaires PM2.5/PM10 du réseau officiel (AASQA/Geod'air), via <a href="https://openaq.org/">OpenAQ</a>.
+    Indice ATMO (points) : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL) ; détail par commune sur la <a href="https://www.atmo-nouvelleaquitaine.org/air-commune">carte officielle</a>.
     Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS (périmètres en zoomant ; feux d'environ 30 ha et plus).
-    Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO.
+    Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Limites de communes : IGN Admin Express COG 2026 (Licence ouverte).
   </details>
 </footer>
 
@@ -390,89 +409,158 @@
   loadWind();
 
 
-  // ==== Indice ATMO par commune : flux national Atmo Data (Atmo France / AASQA) ====
-  // Le site lit d'abord, via le proxy Cloudflare, la dernière valeur réelle du
-  // champ date_ech dans la couche des polygones (ind_atmo), puis construit le
-  // filtre WMS avec cette valeur exacte : plus aucune syntaxe devinée.
+  // ==== Stations particules : mesures officielles (AASQA/Geod'air, via OpenAQ) ====
+  // Même chaîne de mesure que le flux LCSQA "temps réel" de data.gouv, mais
+  // redistribuée en JSON léger avec les coordonnées des stations. Les appels
+  // passent par le proxy Cloudflare (route /v3, clé en secret).
+  const pmLegend = document.getElementById('pmlegend');
+  let stationLayer = null;
+
+  function pmColor(v) {
+    if (v < 10) return '#3fae6a';
+    if (v < 20) return '#d9d54a';
+    if (v < 35) return '#f39c2c';
+    if (v < 60) return '#e0442e';
+    return '#8e44ad';
+  }
+
+  async function loadStations() {
+    if (stationLayer) { map.removeLayer(stationLayer); stationLayer = null; }
+    const on = document.getElementById('stations').checked;
+    pmLegend.style.display = on ? '' : 'none';
+    if (!on) return;
+
+    try {
+      const locResp = await fetch(
+        OPENAQ_PROXY + '/v3/locations?bbox=-2.0,42.6,2.6,47.2' +
+        '&monitor=true&limit=100');
+      if (!locResp.ok) throw new Error('HTTP ' + locResp.status);
+      let locations = (await locResp.json()).results || [];
+      locations = locations.filter(loc => (loc.sensors || [])
+        .some(s => s.parameter && (s.parameter.id === 2 || s.parameter.id === 1)));
+
+      const subset = locations.slice(0, 60);
+      const latest = await Promise.all(subset.map(loc =>
+        fetch(OPENAQ_PROXY + '/v3/locations/' + loc.id + '/latest')
+          .then(r => r.ok ? r.json() : null).catch(() => null)
+      ));
+
+      stationLayer = L.layerGroup();
+      let count = 0;
+      subset.forEach((loc, i) => {
+        if (!latest[i] || !latest[i].results) return;
+        const idsFor = pid => (loc.sensors || [])
+          .filter(s => s.parameter && s.parameter.id === pid)
+          .map(s => s.id);
+        const findMes = ids => latest[i].results.find(r =>
+          ids.includes(r.sensorsId) && r.value != null && r.value >= 0);
+        const m25 = findMes(idsFor(2));
+        const m10 = findMes(idsFor(1));
+        if (!m25 && !m10) return;
+
+        const ref = m25 ? m25.value : m10.value / 2;
+        const main = m25 || m10;
+        const when = main.datetime && main.datetime.local
+          ? main.datetime.local.slice(11, 16) : '';
+        L.circleMarker([loc.coordinates.latitude, loc.coordinates.longitude], {
+          radius: 9, color: '#101418', weight: 2,
+          fillColor: pmColor(ref), fillOpacity: 0.95
+        }).bindPopup(
+          '<b>' + (loc.name || 'Station') + '</b>' +
+          (m25 ? '<br>PM2.5 : <b>' + m25.value.toFixed(1) + ' µg/m³</b>' : '') +
+          (m10 ? '<br>PM10 : <b>' + m10.value.toFixed(1) + ' µg/m³</b>' : '') +
+          (when ? '<br>Mesure de ' + when : '') +
+          '<br><small>Réseau officiel de surveillance (AASQA)</small>'
+        ).addTo(stationLayer);
+        count++;
+      });
+      stationLayer.addTo(map);
+
+      if (count === 0) {
+        notice.textContent = 'Aucune mesure de particules récente disponible sur la zone.';
+        notice.style.display = 'block';
+        setTimeout(() => { notice.style.display = 'none'; }, 6000);
+      }
+    } catch (err) {
+      pmLegend.style.display = 'none';
+      notice.textContent = 'Impossible de charger les stations (proxy indisponible ou quota).';
+      notice.style.display = 'block';
+      setTimeout(() => { notice.style.display = 'none'; }, 8000);
+    }
+  }
+
+  document.getElementById('stations').addEventListener('change', loadStations);
+
+  // ==== Limites de communes (contours IGN Admin Express, filtrés Nouvelle-Aquitaine) ====
+  // Chargées à la demande (fichier ~1,7 Mo) pour ne pas ralentir le démarrage.
+  // La clé insee_com est prête pour une future jointure avec l'indice ATMO.
+  let communesLayer = null;
+  let communesData = null;
+
+  async function toggleCommunes() {
+    const on = document.getElementById('communes').checked;
+    if (!on) {
+      if (communesLayer) { map.removeLayer(communesLayer); }
+      return;
+    }
+    if (communesLayer) { communesLayer.addTo(map); return; }
+
+    notice.textContent = 'Chargement des limites de communes…';
+    notice.style.display = 'block';
+    try {
+      if (!communesData) {
+        const r = await fetch('communes_na.geojson');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        communesData = await r.json();
+      }
+      communesLayer = L.geoJSON(communesData, {
+        pane: 'over',
+        style: { color: '#eef1f3', weight: 1, opacity: 0.5, fill: false },
+        onEachFeature: (feature, layer) => {
+          const p = feature.properties || {};
+          layer.bindPopup('<b>' + (p.nom_commune || 'Commune') + '</b>' +
+            '<br>Code INSEE : ' + (p.insee_com || '?'));
+          // Léger surlignage au survol
+          layer.on('mouseover', () => layer.setStyle({ weight: 2, opacity: 1 }));
+          layer.on('mouseout', () => layer.setStyle({ weight: 1, opacity: 0.5 }));
+        }
+      }).addTo(map);
+      notice.style.display = 'none';
+    } catch (err) {
+      notice.textContent = 'Impossible de charger les limites de communes (fichier absent ?).';
+      notice.style.display = 'block';
+      setTimeout(() => { notice.style.display = 'none'; }, 8000);
+      document.getElementById('communes').checked = false;
+    }
+  }
+
+  document.getElementById('communes').addEventListener('change', toggleCommunes);
+
+  // ==== Indice ATMO : flux national Atmo Data (Atmo France / AASQA) ====
+  // Couche temporelle officielle ind_atmo_tile, rendue en points par le serveur.
+  // Note : la choroplèthe par communes n'est pas accessible depuis un site
+  // statique (le serveur d'Atmo bloque la lecture des données hors navigateur) ;
+  // le détail par commune est proposé via le lien de la légende.
   const ATMO_WMS = 'https://data.atmo-france.org/geoserver/ind/ows';
 
   const atmoLegend = document.getElementById('atmolegend');
   let atmoLayer = null;
-  let atmoConfig; // décision mémorisée pour la session
 
-  async function atmoWfs(params) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6000);
-    try {
-      const r = await fetch(OPENAQ_PROXY + '/atmo?' + params, { signal: ctrl.signal });
-      if (!r.ok) return null;
-      return await r.json();
-    } catch (e) {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  async function resolveAtmoConfig() {
-    const base = 'service=WFS&version=2.0.0&request=GetFeature&typeNames=ind:ind_atmo' +
-      '&count=1&propertyName=date_ech&outputFormat=application/json';
-
-    // 1) Lire la valeur la plus récente de date_ech (avec tri, sinon sans)
-    let sample = await atmoWfs(base + '&sortBy=date_ech%20D');
-    if (!sample || !sample.features || !sample.features.length) {
-      sample = await atmoWfs(base);
-    }
-    const raw = sample && sample.features && sample.features.length
-      ? sample.features[0].properties.date_ech : null;
-
-    if (raw != null) {
-      // 2) Préférer l'échéance du jour si elle existe, sinon la plus récente
-      const rawStr = String(raw);
-      const todayLiteral = rawStr.replace(/\d{4}-\d{2}-\d{2}/, isoDaysAgo(0));
-      for (const literal of [todayLiteral, rawStr]) {
-        const cql = "date_ech = '" + literal + "'";
-        const check = await atmoWfs(base + '&CQL_FILTER=' + encodeURIComponent(cql));
-        if (check && check.features && check.features.length) {
-          return { layer: 'ind_atmo', cql: cql };
-        }
-      }
-    }
-    // 3) Dernier recours : couche temporelle officielle, rendue en points
-    return { layer: 'ind_atmo_tile', time: isoDaysAgo(0) + 'T00:00:00Z' };
-  }
-
-  async function toggleAtmo() {
+  function toggleAtmo() {
     if (atmoLayer) { map.removeLayer(atmoLayer); atmoLayer = null; }
     const on = document.getElementById('atmo').checked;
     atmoLegend.style.display = on ? '' : 'none';
     if (!on) return;
 
-    if (!atmoConfig) {
-      notice.textContent = 'Indice ATMO : réglage du flux Atmo Data…';
-      notice.style.display = 'block';
-      atmoConfig = await resolveAtmoConfig();
-      notice.style.display = 'none';
-      if (atmoConfig.layer === 'ind_atmo_tile') {
-        notice.textContent = 'Indice ATMO affiché en points (données par communes indisponibles).';
-        notice.style.display = 'block';
-        setTimeout(() => { notice.style.display = 'none'; }, 6000);
-      }
-    }
-    // La case a pu être décochée pendant la vérification
-    if (!document.getElementById('atmo').checked) return;
-
-    const opts = {
-      layers: atmoConfig.layer,
+    atmoLayer = L.tileLayer.wms(ATMO_WMS, {
+      layers: 'ind_atmo_tile',
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
-      opacity: 0.55,
+      opacity: 0.85,
+      TIME: isoDaysAgo(0) + 'T00:00:00Z',
       attribution: 'Atmo France et les AASQA'
-    };
-    if (atmoConfig.cql) opts.CQL_FILTER = atmoConfig.cql;
-    if (atmoConfig.time) opts.TIME = atmoConfig.time;
-    atmoLayer = L.tileLayer.wms(ATMO_WMS, opts).addTo(map);
+    }).addTo(map);
   }
 
   document.getElementById('atmo').addEventListener('change', toggleAtmo);
