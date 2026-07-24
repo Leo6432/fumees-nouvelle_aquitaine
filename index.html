@@ -109,6 +109,7 @@
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
     <label class="toggle sat-only"><input type="checkbox" id="fires" checked>Foyers détectés</label>
+    <label class="toggle sat-only"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
     <label class="toggle sat-only"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
     <span class="sat-only"><label for="op">Opacité satellite</label>
     <input type="range" id="op" min="20" max="100" value="100"></span>
@@ -129,9 +130,9 @@
 <div class="notice" id="notice">Image du jour pas encore disponible (les satellites passent vers 10h30–13h30, l'image arrive quelques heures après). Essayez la veille.</div>
 
 <footer>
-  Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS 375 m.
+  Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS 375 m. Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
   Prévision : particules fines PM2.5 du modèle Copernicus CAMS, via l'API <a href="https://open-meteo.com/">Open-Meteo</a> (48 h, pas horaire).
-  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>.
+  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO.
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -139,16 +140,31 @@
   // ---- Carte centrée sur la Nouvelle-Aquitaine ----
   const map = L.map('map', { zoomControl: true }).setView([44.9, 0.0], 7);
 
-  // Fond OSM discret (repères géographiques sous l'image satellite)
+  // Calques dédiés pour dessiner AU-DESSUS de l'image satellite :
+  // 'over' pour les superpositions de données, 'toplabels' pour les noms de villes
+  map.createPane('over');
+  map.getPane('over').style.zIndex = 620;
+  map.getPane('over').style.pointerEvents = 'none';
+  map.createPane('toplabels');
+  map.getPane('toplabels').style.zIndex = 650;
+  map.getPane('toplabels').style.pointerEvents = 'none';
+
+  // Fond OSM (visible quand l'opacité satellite est réduite, et en mode prévision)
   const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
+  // Noms de villes et routes seuls, dessinés PAR-DESSUS l'image satellite
+  const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png', {
+    subdomains: 'abcd', maxZoom: 19, pane: 'toplabels',
+    attribution: '© CARTO'
+  }).addTo(map);
+
   const GIBS = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best';
 
-  function gibsUrl(layer, date, ext) {
-    return `${GIBS}/${layer}/default/${date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.${ext}`;
+  function gibsUrl(layer, date, ext, level) {
+    return `${GIBS}/${layer}/default/${date}/GoogleMapsCompatible_Level${level || 9}/{z}/{y}/{x}.${ext}`;
   }
 
   // Par défaut : hier (l'image du jour arrive avec quelques heures de délai)
@@ -161,6 +177,7 @@
 
   let satLayer = null;
   let fireLayer = null;
+  let aiLayer = null;
 
   function rebuild() {
     const date = dateInput.value;
@@ -169,6 +186,7 @@
 
     if (satLayer) map.removeLayer(satLayer);
     if (fireLayer) map.removeLayer(fireLayer);
+    if (aiLayer) map.removeLayer(aiLayer);
 
     satLayer = L.tileLayer(gibsUrl(sat, date, 'jpg'), {
       maxNativeZoom: 9, maxZoom: 12, opacity: opacity,
@@ -191,8 +209,17 @@
         ? 'VIIRS_NOAA20_Thermal_Anomalies_375m_All'
         : 'VIIRS_SNPP_Thermal_Anomalies_375m_All';
       fireLayer = L.tileLayer(gibsUrl(fireProduct, date, 'png'), {
-        maxNativeZoom: 9, maxZoom: 12,
+        maxNativeZoom: 9, maxZoom: 12, pane: 'over',
         attribution: 'NASA FIRMS/VIIRS'
+      }).addTo(map);
+    }
+
+    // Indice d'aérosols UV (OMPS, Suomi-NPP) : panaches de fumée, cendres, poussières
+    // Résolution 2 km → jeu de tuiles Level6
+    if (document.getElementById('aerosol').checked) {
+      aiLayer = L.tileLayer(gibsUrl('OMPS_Aerosol_Index_PyroCumuloNimbus', date, 'png', 6), {
+        maxNativeZoom: 6, maxZoom: 12, pane: 'over', opacity: 0.65,
+        attribution: 'NASA OMPS'
       }).addTo(map);
     }
   }
@@ -200,13 +227,12 @@
   document.getElementById('date').addEventListener('change', rebuild);
   document.getElementById('sat').addEventListener('change', rebuild);
   document.getElementById('fires').addEventListener('change', rebuild);
+  document.getElementById('aerosol').addEventListener('change', rebuild);
   document.getElementById('op').addEventListener('input', () => {
     if (satLayer) satLayer.setOpacity(document.getElementById('op').value / 100);
   });
   document.getElementById('labels').addEventListener('change', (e) => {
-    e.target.checked ? osm.addTo(map) : map.removeLayer(osm);
-    if (satLayer) satLayer.bringToFront();
-    if (fireLayer) fireLayer.bringToFront();
+    e.target.checked ? labelsLayer.addTo(map) : map.removeLayer(labelsLayer);
   });
 
   rebuild();
@@ -308,14 +334,11 @@
     if (cams) {
       // Fond OSM seul + grille PM2.5 (les foyers restent visibles)
       if (satLayer) map.removeLayer(satLayer);
-      if (!map.hasLayer(osm)) osm.addTo(map);
+      if (aiLayer) map.removeLayer(aiLayer);
       if (pmData) { pmLayer.addTo(map); showHour(+slider.value); }
       else loadForecast();
-      if (fireLayer && map.hasLayer(fireLayer)) fireLayer.bringToFront();
     } else {
       if (pmLayer) map.removeLayer(pmLayer);
-      const wantLabels = document.getElementById('labels').checked;
-      if (!wantLabels && map.hasLayer(osm)) map.removeLayer(osm);
       rebuild();
     }
   }
