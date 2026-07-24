@@ -87,6 +87,17 @@
   }
   #atmolegend b{color:var(--paper);font-weight:600}
   #atmolegend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+  #aerosollegend{
+    position:absolute;left:12px;bottom:26px;z-index:1000;display:none;
+    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
+    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.55;
+    max-width:255px;
+  }
+  #aerosollegend b{color:var(--paper);font-weight:600}
+  #aerosollegend .grad{
+    height:8px;border-radius:4px;margin:5px 0 3px;
+    background:linear-gradient(90deg,#efefef,#f6f34d,#f2a000,#e02a00,#960032);
+  }
 </style>
 </head>
 <body>
@@ -116,11 +127,11 @@
     </select></span>
     <label class="toggle" title="Couche WMS brute, utile seulement pour contrôler la choroplèthe"><input type="checkbox" id="atmo">Contrôle WMS (points)</label>
     <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
-    <label class="toggle"><input type="checkbox" id="burnt">Surfaces brûlées 2026</label>
-    <label class="toggle"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
+    <label class="toggle"><input type="checkbox" id="burnt">Surfaces brûlées (EFFIS)</label>
+    <label class="toggle"><input type="checkbox" id="aerosol">Aérosols OMPS (AI)</label>
     <label class="toggle"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
     <span><label for="aiop">Intensité aérosols</label>
-    <input type="range" id="aiop" min="30" max="100" value="90"></span>
+    <input type="range" id="aiop" min="20" max="100" value="70"></span>
     <span><label for="op">Opacité satellite</label>
     <input type="range" id="op" min="20" max="100" value="100"></span>
   </div>
@@ -137,6 +148,12 @@
   <span class="sw" style="background:#872181"></span>Extrêmement mauvais<br>
   <span class="sw" style="background:#888"></span>Événement (non représentatif)<br>
   <small>Détail par commune : <a href="https://www.atmo-nouvelleaquitaine.org/air-commune" style="color:var(--paper)">carte officielle Atmo NA</a></small>
+</div>
+<div id="aerosollegend">
+  <b>Indice d’aérosols OMPS</b>
+  <div class="grad"></div>
+  <small>Gris pâle : faible ou nul · jaune/orange : panache marqué · rouge : signal très fort.<br>
+  Donnée satellitaire en bandes de passage, pas une mesure au sol.</small>
 </div>
 <div class="notice" id="notice"></div>
 
@@ -164,6 +181,12 @@
   map.createPane('over');
   map.getPane('over').style.zIndex = 620;
   map.getPane('over').style.pointerEvents = 'none';
+  map.createPane('aerosol');
+  map.getPane('aerosol').style.zIndex = 625;
+  map.getPane('aerosol').style.pointerEvents = 'none';
+  // Le mode multiply rend les faibles valeurs gris-blanc presque neutres
+  // tout en conservant visibles les teintes jaune-orange-rouge.
+  map.getPane('aerosol').style.mixBlendMode = 'multiply';
   map.createPane('toplabels');
   map.getPane('toplabels').style.zIndex = 650;
   map.getPane('toplabels').style.pointerEvents = 'none';
@@ -192,6 +215,7 @@
 
   const dateInput = document.getElementById('date');
   const notice = document.getElementById('notice');
+  const aerosolLegend = document.getElementById('aerosollegend');
   dateInput.max = isoDaysAgo(0);
   dateInput.min = '2015-11-24'; // début des archives VIIRS
   // On tente l'image du jour ; si elle n'est pas encore publiée, on recule automatiquement
@@ -309,12 +333,16 @@
       }
     });
 
-    // Indice d'aérosols UV (OMPS, Suomi-NPP) : panaches de fumée, cendres, poussières
-    // Résolution 2 km → jeu de tuiles Level6
-    if (document.getElementById('aerosol').checked) {
-      aiLayer = L.tileLayer(gibsUrl('OMPS_Aerosol_Index_PyroCumuloNimbus', date, 'png', 6), {
-        maxNativeZoom: 6, maxZoom: 12, pane: 'over',
+    // Indice d'aérosols standard OMPS : adapté aux valeurs usuelles (environ 0 à 5).
+    // L'ancien produit PyroCumuloNimbus n'est utile que pour les panaches extrêmes
+    // et rend les valeurs ordinaires presque blanches, donc peu lisibles.
+    const aerosolOn = document.getElementById('aerosol').checked;
+    aerosolLegend.style.display = aerosolOn ? '' : 'none';
+    if (aerosolOn) {
+      aiLayer = L.tileLayer(gibsUrl('OMPS_Aerosol_Index', date, 'png', 6), {
+        maxNativeZoom: 6, maxZoom: 12, pane: 'aerosol',
         opacity: document.getElementById('aiop').value / 100,
+        updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 1,
         attribution: 'NASA OMPS'
       }).addTo(map);
     }
@@ -324,6 +352,7 @@
     userPickedDate = true;
     rebuild();
     refreshAtmoForSelectedDate();
+    if (document.getElementById('burnt').checked) updateBurntForZoom();
   });
   document.getElementById('sat').addEventListener('change', rebuild);
   document.getElementById('fires').addEventListener('change', loadFirms);
@@ -655,30 +684,75 @@
 
   document.getElementById('atmo').addEventListener('change', toggleAtmo);
 
-  // ==== Surfaces brûlées de la saison : EFFIS (Copernicus EMS / JRC) ====
-  // Couche vérifiée dans le GetCapabilities du serveur EFFIS :
-  // effis.nrt.ba.poly = périmètres (visibles en zoomant), .point = repères en vue régionale.
-  let burntLayer = null;
+  // ==== Surfaces brûlées : EFFIS (Copernicus EMS / JRC) ====
+  // À l'échelle régionale, on charge uniquement les points. Les polygones
+  // détaillés ne sont demandés qu'à partir du zoom 9, ce qui évite les requêtes
+  // WMS très lourdes sur toute la France.
+  let burntPointLayer = null;
+  let burntPolyLayer = null;
 
-  function toggleBurnt() {
-    if (burntLayer) { map.removeLayer(burntLayer); burntLayer = null; }
-    if (!document.getElementById('burnt').checked) return;
+  const EFFIS_BOUNDS = L.latLngBounds([[42.4, -2.2], [47.4, 2.9]]);
 
-    burntLayer = L.tileLayer.wms('https://maps.effis.emergency.copernicus.eu/effis', {
-      layers: 'effis.nrt.ba.poly,effis.nrt.ba.point',
+  function clearBurntLayers() {
+    if (burntPointLayer) { map.removeLayer(burntPointLayer); burntPointLayer = null; }
+    if (burntPolyLayer) { map.removeLayer(burntPolyLayer); burntPolyLayer = null; }
+  }
+
+  function effisOptions(layerName) {
+    const selected = dateInput.value || isoDaysAgo(0);
+    const year = selected.slice(0, 4);
+    return {
+      layers: layerName,
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
-      opacity: 0.8,
+      opacity: 0.85,
       pane: 'over',
-      tileSize: 512,
-      // Toute la saison en cours, du 1er janvier à aujourd'hui
-      TIME: new Date().getFullYear() + '-01-01/' + isoDaysAgo(0),
+      tileSize: 256,
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      keepBuffer: 0,
+      bounds: EFFIS_BOUNDS,
+      TIME: year + '-01-01/' + selected,
       attribution: 'EFFIS © UE, Copernicus EMS'
-    }).addTo(map);
+    };
+  }
+
+  function updateBurntForZoom() {
+    clearBurntLayers();
+    if (!document.getElementById('burnt').checked) return;
+
+    if (map.getZoom() < 9) {
+      burntPointLayer = L.tileLayer.wms(
+        'https://maps.effis.emergency.copernicus.eu/effis',
+        effisOptions('effis.nrt.ba.point')
+      ).addTo(map);
+    } else {
+      burntPolyLayer = L.tileLayer.wms(
+        'https://maps.effis.emergency.copernicus.eu/effis',
+        effisOptions('effis.nrt.ba.poly')
+      ).addTo(map);
+    }
+  }
+
+  function toggleBurnt() {
+    if (!document.getElementById('burnt').checked) {
+      clearBurntLayers();
+      return;
+    }
+    notice.textContent = map.getZoom() < 9
+      ? 'EFFIS : repères rapides à cette échelle — zoome pour afficher les périmètres.'
+      : 'EFFIS : chargement des périmètres brûlés…';
+    notice.style.display = 'block';
+    setTimeout(() => { notice.style.display = 'none'; }, 4500);
+    updateBurntForZoom();
   }
 
   document.getElementById('burnt').addEventListener('change', toggleBurnt);
+  map.on('zoomend', () => {
+    if (document.getElementById('burnt').checked) updateBurntForZoom();
+  });
+
 </script>
 </body>
 </html>
