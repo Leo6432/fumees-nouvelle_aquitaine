@@ -391,53 +391,84 @@
 
 
   // ==== Indice ATMO par commune : flux national Atmo Data (Atmo France / AASQA) ====
-  // Configuration vérifiée dans le GetCapabilities du serveur (merci Nicolas !) :
-  // endpoint /geoserver/ind/ows, couche ind_atmo_tile avec dimension temporelle,
-  // projections acceptées : EPSG:3857 (celle de la carte) et CRS:84.
+  // Le catalogue du serveur (analysé le 25/07/2026) montre que seule la couche
+  // ind_atmo_tile (points) a une dimension temporelle. Pour la choroplèthe par
+  // communes (ind_atmo), la bonne syntaxe de filtre de date est déterminée en
+  // interrogeant le serveur (mini-requête WFS JSONP qui compte les résultats).
   const ATMO_WMS = 'https://data.atmo-france.org/geoserver/ind/ows';
 
   const atmoLegend = document.getElementById('atmolegend');
   let atmoLayer = null;
+  let atmoConfig; // décision mémorisée pour la session
 
-  function toggleAtmo() {
+  // Compte les communes correspondant à un filtre, sans télécharger de géométrie.
+  // JSONP (script) pour contourner CORS ; -1 = le serveur n'a pas répondu.
+  function atmoCount(cql) {
+    return new Promise(resolve => {
+      const cb = 'atmoCb' + Math.floor(Math.random() * 1e9);
+      const s = document.createElement('script');
+      const timer = setTimeout(() => { cleanup(); resolve(-1); }, 8000);
+      function cleanup() { try { delete window[cb]; } catch (e) {} s.remove(); clearTimeout(timer); }
+      window[cb] = data => {
+        cleanup();
+        resolve((data && (data.totalFeatures ?? data.numberMatched)) || 0);
+      };
+      s.onerror = () => { cleanup(); resolve(-1); };
+      s.src = ATMO_WMS + '?service=WFS&version=2.0.0&request=GetFeature' +
+        '&typeNames=ind:ind_atmo&count=1&propertyName=date_ech' +
+        '&outputFormat=text/javascript&format_options=callback:' + cb +
+        '&CQL_FILTER=' + encodeURIComponent(cql);
+      document.body.appendChild(s);
+    });
+  }
+
+  async function resolveAtmoConfig() {
+    const today = isoDaysAgo(0);
+    const candidates = [
+      "date_ech = '" + today + "'",
+      'date_ech DURING ' + today + 'T00:00:00Z/' + today + 'T23:59:59Z',
+      "date_ech = '" + today + "T00:00:00Z'"
+    ];
+    for (const cql of candidates) {
+      const n = await atmoCount(cql);
+      if (n > 0) return { layer: 'ind_atmo', cql: cql };
+    }
+    // Aucune syntaxe ne renvoie de communes (ou serveur muet) :
+    // couche temporelle officielle, rendue en points.
+    return { layer: 'ind_atmo_tile', time: isoDaysAgo(0) + 'T00:00:00Z' };
+  }
+
+  async function toggleAtmo() {
     if (atmoLayer) { map.removeLayer(atmoLayer); atmoLayer = null; }
     const on = document.getElementById('atmo').checked;
     atmoLegend.style.display = on ? '' : 'none';
     if (!on) return;
 
-    const today = isoDaysAgo(0);
-    // Couche des polygones de communes (choroplèthe), filtrée sur l'indice du jour
-    atmoLayer = L.tileLayer.wms(ATMO_WMS, {
-      layers: 'ind_atmo',
+    if (!atmoConfig) {
+      notice.textContent = 'Indice ATMO : réglage du flux Atmo Data…';
+      notice.style.display = 'block';
+      atmoConfig = await resolveAtmoConfig();
+      notice.style.display = 'none';
+      if (atmoConfig.layer === 'ind_atmo_tile') {
+        notice.textContent = 'Indice ATMO affiché en points (le serveur n\'a pas accepté le filtre par communes).';
+        notice.style.display = 'block';
+        setTimeout(() => { notice.style.display = 'none'; }, 6000);
+      }
+    }
+    // La case a pu être décochée pendant la vérification
+    if (!document.getElementById('atmo').checked) return;
+
+    const opts = {
+      layers: atmoConfig.layer,
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
       opacity: 0.55,
-      CQL_FILTER: 'date_ech DURING ' + today + 'T00:00:00Z/' + today + 'T23:59:59Z',
       attribution: 'Atmo France et les AASQA'
-    });
-
-    // Filet de sécurité : si les polygones échouent, bascule sur la couche
-    // temporelle (rendu en points).
-    let errs = 0, ok = 0, fell = false;
-    atmoLayer.on('tileload', () => { ok++; });
-    atmoLayer.on('tileerror', () => {
-      errs++;
-      if (!fell && errs > 3 && ok === 0) {
-        fell = true;
-        map.removeLayer(atmoLayer);
-        atmoLayer = L.tileLayer.wms(ATMO_WMS, {
-          layers: 'ind_atmo_tile',
-          format: 'image/png',
-          transparent: true,
-          version: '1.1.1',
-          opacity: 0.55,
-          TIME: today + 'T00:00:00Z',
-          attribution: 'Atmo France et les AASQA'
-        }).addTo(map);
-      }
-    });
-    atmoLayer.addTo(map);
+    };
+    if (atmoConfig.cql) opts.CQL_FILTER = atmoConfig.cql;
+    if (atmoConfig.time) opts.TIME = atmoConfig.time;
+    atmoLayer = L.tileLayer.wms(ATMO_WMS, opts).addTo(map);
   }
 
   document.getElementById('atmo').addEventListener('change', toggleAtmo);
