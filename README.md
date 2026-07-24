@@ -14,9 +14,10 @@ On peut choisir le jour, le satellite (VIIRS NOAA-20, VIIRS Suomi-NPP, MODIS
 Terra ou Aqua), afficher les foyers détectés (détections thermiques VIIRS
 375 m) et régler l'opacité pour voir les villes et routes en dessous.
 
-**Prévision fumée (CAMS)** — une carte Windy intégrée affichant le modèle
-Copernicus CAMS : particules fines PM2.5, monoxyde de carbone ou aérosols,
-avec une animation heure par heure sur plusieurs jours.
+**Prévision fumée (CAMS)** — la prévision des particules fines PM2.5 du
+modèle européen Copernicus CAMS, récupérée via l'API Open-Meteo et affichée
+en grille colorée sur la carte (du vert « bon » au violet « très mauvais »),
+avec un curseur pour faire défiler les 48 prochaines heures, heure par heure.
 
 ## Limites à connaître
 
@@ -33,7 +34,7 @@ avec une animation heure par heure sur plusieurs jours.
 
 - Imagerie satellite : [NASA GIBS / Worldview](https://worldview.earthdata.nasa.gov/) (VIIRS et MODIS)
 - Détection des foyers : NASA FIRMS (anomalies thermiques VIIRS 375 m)
-- Prévision : [Windy.com](https://www.windy.com/) avec le modèle [Copernicus CAMS](https://atmosphere.copernicus.eu/)
+- Prévision PM2.5 : [Copernicus CAMS](https://atmosphere.copernicus.eu/) via l'API [Open-Meteo](https://open-meteo.com/)
 - Fond de carte : © les contributeurs [OpenStreetMap](https://www.openstreetmap.org/copyright)
 - Bibliothèque cartographique : [Leaflet](https://leafletjs.com/)
 
@@ -43,7 +44,8 @@ gratuitement sur GitHub Pages.
 ## Modifier le site
 
 Tout le site tient dans `index.html`. Pour changer la zone affichée,
-modifier les coordonnées dans le code JavaScript (`setView([44.9, 0.0], 7)`
-pour la carte satellite, et `lat=44.9&lon=0.0` dans l'URL Windy pour la
-prévision). Après chaque modification enregistrée (commit), GitHub Pages
-republie le site automatiquement en une à deux minutes.
+modifier les coordonnées dans le code JavaScript : `setView([44.9, 0.0], 7)`
+pour le centrage de la carte, et les constantes `LAT0`, `LAT1`, `LON0`,
+`LON1` pour l'emprise de la grille de prévision. Après chaque modification
+enregistrée (commit), GitHub Pages republie le site automatiquement en une
+à deux minutes.
