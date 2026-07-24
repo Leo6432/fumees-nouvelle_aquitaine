@@ -2,8 +2,7 @@
 
 Carte web pour suivre les panaches de fumée des incendies en Nouvelle-Aquitaine.
 
-**Site en ligne :** https://TON-PSEUDO.github.io/fumees-na/
-*(remplace TON-PSEUDO par ton pseudo GitHub)*
+**Site en ligne :** https://nicolaslecorvec.github.io/fumees-nouvelle_aquitaine/
 
 ## Ce que montre le site
 
