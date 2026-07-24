@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fumées — Nouvelle-Aquitaine</title>
-<meta name="description" content="Carte des panaches de fumée des incendies en Nouvelle-Aquitaine : imagerie satellite NASA du jour, foyers détectés et prévision Copernicus CAMS.">
+<meta name="description" content="Carte des panaches de fumée des incendies en Nouvelle-Aquitaine : imagerie satellite NASA la plus récente, foyers détectés et indice d'aérosols.">
 <meta property="og:title" content="Fumées · Nouvelle-Aquitaine">
-<meta property="og:description" content="Panaches de fumée des incendies : imagerie satellite NASA du jour, foyers détectés et prévision heure par heure (Copernicus CAMS).">
+<meta property="og:description" content="Panaches de fumée des incendies : imagerie satellite NASA la plus récente, foyers détectés et indice d'aérosols UV (OMPS).">
 <meta property="og:type" content="website">
 <!-- Optionnel : décommente et remplace par l'URL d'une capture d'écran pour l'aperçu LinkedIn
-<meta property="og:image" content="https://TON-PSEUDO.github.io/fumees-na/apercu.png">
+<meta property="og:image" content="https://nicolaslecorvec.github.io/fumees-nouvelle_aquitaine/apercu.png">
 -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
@@ -19,7 +19,6 @@
     --panel-2:#232c36;
     --smoke:#aeb8c2;
     --ember:#ff6b35;
-    --pine:#5c7a5e;
     --paper:#eef1f3;
   }
   *{box-sizing:border-box;margin:0}
@@ -71,68 +70,39 @@
     padding:8px 14px;font-size:.8rem;color:var(--smoke);z-index:1200;
     display:none;max-width:90%;text-align:center;
   }
-  .mode{display:flex;border:1px solid #38424e;border-radius:8px;overflow:hidden}
-  .mode button{
-    background:var(--panel-2);color:var(--smoke);border:0;
-    padding:6px 12px;font-size:.82rem;cursor:pointer;
-  }
-  .mode button.active{background:var(--ember);color:#fff}
-  body.forecast .sat-only{display:none}
-  #cams-controls input[type="range"]{width:180px}
-  #time-label{color:var(--paper);font-variant-numeric:tabular-nums;min-width:150px;display:inline-block}
-  #legend{
-    position:absolute;left:12px;bottom:26px;z-index:1000;display:none;
-    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
-    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
-  }
-  body.forecast #legend{display:block}
-  #legend b{color:var(--paper);font-weight:600}
-  #legend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 </style>
 </head>
 <body>
 
 <header>
   <h1><span class="dot"></span>Fumées · Nouvelle-Aquitaine</h1>
-  <div class="mode" role="tablist">
-    <button id="mode-sat" class="active">Satellite (image du jour)</button>
-    <button id="mode-cams">Prévision fumée (CAMS)</button>
-  </div>
   <div class="controls">
-    <span class="sat-only"><label for="date">Jour</label>
+    <span><label for="date">Jour</label>
     <input type="date" id="date"></span>
-    <span class="sat-only"><label for="sat">Satellite</label>
+    <span><label for="sat">Satellite</label>
     <select id="sat">
       <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor">VIIRS NOAA-20 (~13h30)</option>
       <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS Suomi-NPP (~13h30)</option>
       <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
-    <label class="toggle sat-only"><input type="checkbox" id="fires" checked>Foyers détectés</label>
-    <label class="toggle sat-only"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
-    <label class="toggle sat-only"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
-    <span class="sat-only"><label for="op">Opacité satellite</label>
+    <label class="toggle"><input type="checkbox" id="fires" checked>Foyers détectés</label>
+    <label class="toggle"><input type="checkbox" id="aerosol" checked>Aérosols (indice UV)</label>
+    <label class="toggle"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
+    <span><label for="aiop">Intensité aérosols</label>
+    <input type="range" id="aiop" min="30" max="100" value="90"></span>
+    <span><label for="op">Opacité satellite</label>
     <input type="range" id="op" min="20" max="100" value="100"></span>
-    <span id="cams-controls" style="display:none"><label for="time-slider">Heure</label>
-    <input type="range" id="time-slider" min="0" max="47" value="0" step="1">
-    <span id="time-label">—</span></span>
   </div>
 </header>
 
 <div id="map"></div>
-<div id="legend"><b>PM2.5 prévues (µg/m³)</b><br>
-  <span class="sw" style="background:#3fae6a"></span>0–10 bon<br>
-  <span class="sw" style="background:#d9d54a"></span>10–20 moyen<br>
-  <span class="sw" style="background:#f39c2c"></span>20–35 dégradé<br>
-  <span class="sw" style="background:#e0442e"></span>35–60 mauvais<br>
-  <span class="sw" style="background:#8e44ad"></span>&gt; 60 très mauvais
-</div>
-<div class="notice" id="notice">Image du jour pas encore disponible (les satellites passent vers 10h30–13h30, l'image arrive quelques heures après). Essayez la veille.</div>
+<div class="notice" id="notice"></div>
 
 <footer>
   Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS 375 m. Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
-  Prévision : particules fines PM2.5 du modèle Copernicus CAMS, via l'API <a href="https://open-meteo.com/">Open-Meteo</a> (48 h, pas horaire).
   Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO.
+  Une image par jour et par satellite — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -149,7 +119,7 @@
   map.getPane('toplabels').style.zIndex = 650;
   map.getPane('toplabels').style.pointerEvents = 'none';
 
-  // Fond OSM (visible quand l'opacité satellite est réduite, et en mode prévision)
+  // Fond OSM (visible quand l'opacité satellite est réduite)
   const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap'
@@ -167,13 +137,18 @@
     return `${GIBS}/${layer}/default/${date}/GoogleMapsCompatible_Level${level || 9}/{z}/{y}/{x}.${ext}`;
   }
 
-  // Par défaut : hier (l'image du jour arrive avec quelques heures de délai)
-  const d = new Date(Date.now() - 24 * 3600 * 1000);
-  const iso = d.toISOString().slice(0, 10);
+  function isoDaysAgo(n) {
+    return new Date(Date.now() - n * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
   const dateInput = document.getElementById('date');
-  dateInput.value = iso;
-  dateInput.max = new Date().toISOString().slice(0, 10);
+  const notice = document.getElementById('notice');
+  dateInput.max = isoDaysAgo(0);
   dateInput.min = '2015-11-24'; // début des archives VIIRS
+  // On tente l'image du jour ; si elle n'est pas encore publiée, on recule automatiquement
+  dateInput.value = isoDaysAgo(0);
+  let autoStep = 0;          // nombre de jours reculés automatiquement (max 2)
+  let userPickedDate = false; // l'utilisateur a choisi une date : plus de recul auto
 
   let satLayer = null;
   let fireLayer = null;
@@ -193,16 +168,23 @@
       attribution: 'NASA GIBS'
     }).addTo(map);
 
-    // Si trop de tuiles manquent, l'image du jour n'est sans doute pas encore publiée
-    let errors = 0, loads = 0;
-    document.getElementById('notice').style.display = 'none';
+    // Recul automatique : si l'image demandée n'est pas encore publiée
+    // (tuiles en erreur, rien de chargé), on affiche la veille.
+    let errors = 0, loads = 0, stepped = false;
+    notice.style.display = 'none';
+    satLayer.on('tileload', () => { loads++; });
     satLayer.on('tileerror', () => {
       errors++;
-      if (errors > 4 && loads === 0 && date === dateInput.max) {
-        document.getElementById('notice').style.display = 'block';
+      if (!stepped && !userPickedDate && autoStep < 2 && errors > 4 && loads === 0) {
+        stepped = true;
+        autoStep++;
+        dateInput.value = isoDaysAgo(autoStep);
+        notice.textContent = "Image du jour pas encore publiée — affichage de la dernière disponible (" +
+          new Date(dateInput.value).toLocaleDateString('fr-FR') + ").";
+        notice.style.display = 'block';
+        rebuild();
       }
     });
-    satLayer.on('tileload', () => { loads++; });
 
     if (document.getElementById('fires').checked) {
       const fireProduct = sat.includes('NOAA20')
@@ -218,133 +200,31 @@
     // Résolution 2 km → jeu de tuiles Level6
     if (document.getElementById('aerosol').checked) {
       aiLayer = L.tileLayer(gibsUrl('OMPS_Aerosol_Index_PyroCumuloNimbus', date, 'png', 6), {
-        maxNativeZoom: 6, maxZoom: 12, pane: 'over', opacity: 0.65,
+        maxNativeZoom: 6, maxZoom: 12, pane: 'over',
+        opacity: document.getElementById('aiop').value / 100,
         attribution: 'NASA OMPS'
       }).addTo(map);
     }
   }
 
-  document.getElementById('date').addEventListener('change', rebuild);
+  document.getElementById('date').addEventListener('change', () => {
+    userPickedDate = true;
+    rebuild();
+  });
   document.getElementById('sat').addEventListener('change', rebuild);
   document.getElementById('fires').addEventListener('change', rebuild);
   document.getElementById('aerosol').addEventListener('change', rebuild);
   document.getElementById('op').addEventListener('input', () => {
     if (satLayer) satLayer.setOpacity(document.getElementById('op').value / 100);
   });
+  document.getElementById('aiop').addEventListener('input', () => {
+    if (aiLayer) aiLayer.setOpacity(document.getElementById('aiop').value / 100);
+  });
   document.getElementById('labels').addEventListener('change', (e) => {
     e.target.checked ? labelsLayer.addTo(map) : map.removeLayer(labelsLayer);
   });
 
   rebuild();
-
-  // ---- Mode Prévision : PM2.5 du modèle Copernicus CAMS via Open-Meteo ----
-  const btnSat = document.getElementById('mode-sat');
-  const btnCams = document.getElementById('mode-cams');
-  const camsControls = document.getElementById('cams-controls');
-  const slider = document.getElementById('time-slider');
-  const timeLabel = document.getElementById('time-label');
-  const notice = document.getElementById('notice');
-
-  // Grille couvrant la Nouvelle-Aquitaine et ses abords
-  const STEP = 0.4;
-  const LAT0 = 42.6, LAT1 = 47.2, LON0 = -2.0, LON1 = 2.6;
-  const gridLats = [], gridLons = [];
-  for (let la = LAT0; la <= LAT1; la += STEP)
-    for (let lo = LON0; lo <= LON1; lo += STEP) {
-      gridLats.push(la.toFixed(2));
-      gridLons.push(lo.toFixed(2));
-    }
-
-  let pmLayer = null;   // groupe de rectangles colorés
-  let pmCells = [];     // rectangles, alignés avec les points de la grille
-  let pmData = null;    // valeurs pm2_5 par point : pmData[i][h]
-  let pmTimes = null;   // horodatages communs
-
-  function pmColor(v) {
-    if (v == null) return null;
-    if (v < 10) return '#3fae6a';
-    if (v < 20) return '#d9d54a';
-    if (v < 35) return '#f39c2c';
-    if (v < 60) return '#e0442e';
-    return '#8e44ad';
-  }
-
-  async function loadForecast() {
-    notice.textContent = 'Chargement de la prévision CAMS…';
-    notice.style.display = 'block';
-    try {
-      const url = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
-        '?latitude=' + gridLats.join(',') + '&longitude=' + gridLons.join(',') +
-        '&hourly=pm2_5&forecast_days=2&timezone=Europe%2FParis';
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      let data = await resp.json();
-      if (!Array.isArray(data)) data = [data];
-
-      pmTimes = data[0].hourly.time;
-      pmData = data.map(pt => pt.hourly.pm2_5);
-
-      pmLayer = L.layerGroup();
-      pmCells = [];
-      const h = STEP / 2;
-      data.forEach((pt, i) => {
-        const rect = L.rectangle(
-          [[pt.latitude - h, pt.longitude - h], [pt.latitude + h, pt.longitude + h]],
-          { stroke: false, fillOpacity: 0.45, fillColor: '#3fae6a', interactive: false }
-        );
-        pmCells.push(rect);
-        pmLayer.addLayer(rect);
-      });
-
-      slider.max = pmTimes.length - 1;
-      // Démarrer à l'heure actuelle
-      const nowIdx = pmTimes.findIndex(t => new Date(t) >= new Date());
-      slider.value = Math.max(0, nowIdx);
-      notice.style.display = 'none';
-      showHour(+slider.value);
-      pmLayer.addTo(map);
-    } catch (err) {
-      pmData = null;
-      notice.textContent = 'Impossible de charger la prévision (Open-Meteo). Réessaie dans un instant.';
-      notice.style.display = 'block';
-    }
-  }
-
-  function showHour(idx) {
-    if (!pmData) return;
-    const dt = new Date(pmTimes[idx]);
-    timeLabel.textContent = dt.toLocaleString('fr-FR', {
-      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-    });
-    pmCells.forEach((rect, i) => {
-      const c = pmColor(pmData[i] ? pmData[i][idx] : null);
-      rect.setStyle(c ? { fillColor: c, fillOpacity: 0.45 } : { fillOpacity: 0 });
-    });
-  }
-
-  slider.addEventListener('input', () => showHour(+slider.value));
-
-  function setMode(cams) {
-    document.body.classList.toggle('forecast', cams);
-    btnSat.classList.toggle('active', !cams);
-    btnCams.classList.toggle('active', cams);
-    camsControls.style.display = cams ? '' : 'none';
-    notice.style.display = 'none';
-
-    if (cams) {
-      // Fond OSM seul + grille PM2.5 (les foyers restent visibles)
-      if (satLayer) map.removeLayer(satLayer);
-      if (aiLayer) map.removeLayer(aiLayer);
-      if (pmData) { pmLayer.addTo(map); showHour(+slider.value); }
-      else loadForecast();
-    } else {
-      if (pmLayer) map.removeLayer(pmLayer);
-      rebuild();
-    }
-  }
-
-  btnSat.addEventListener('click', () => setMode(false));
-  btnCams.addEventListener('click', () => setMode(true));
 </script>
 </body>
 </html>
