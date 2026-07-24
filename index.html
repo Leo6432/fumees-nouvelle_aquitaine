@@ -80,13 +80,6 @@
     padding:8px 14px;font-size:.8rem;color:var(--smoke);z-index:1200;
     display:none;max-width:90%;text-align:center;
   }
-  #pmlegend{
-    position:absolute;left:12px;bottom:26px;z-index:1000;
-    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
-    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
-  }
-  #pmlegend b{color:var(--paper);font-weight:600}
-  #pmlegend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
   #atmolegend{
     position:absolute;right:12px;bottom:26px;z-index:1000;display:none;
     background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
@@ -111,7 +104,6 @@
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
     <label class="toggle"><input type="checkbox" id="fires" checked>Foyers (dernières 48 h)</label>
-    <label class="toggle"><input type="checkbox" id="stations" checked>Stations particules (mesuré)</label>
     <label class="toggle"><input type="checkbox" id="atmo">Indice ATMO (communes)</label>
     <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
     <label class="toggle"><input type="checkbox" id="burnt">Surfaces brûlées 2026</label>
@@ -125,14 +117,7 @@
 </header>
 
 <div id="map"></div>
-<div id="pmlegend"><b>Particules mesurées (µg/m³, PM2.5)</b><br>
-  <span class="sw" style="background:#3fae6a"></span>0–10 bon<br>
-  <span class="sw" style="background:#d9d54a"></span>10–20 moyen<br>
-  <span class="sw" style="background:#f39c2c"></span>20–35 dégradé<br>
-  <span class="sw" style="background:#e0442e"></span>35–60 mauvais<br>
-  <span class="sw" style="background:#8e44ad"></span>&gt; 60 très mauvais<br>
-  <small>Cliquer une station : PM2.5 et PM10</small>
-</div>
+
 <div id="atmolegend"><b>Indice ATMO du jour</b><br>
   <span class="sw" style="background:#50f0e6"></span>Bon<br>
   <span class="sw" style="background:#50ccaa"></span>Moyen<br>
@@ -152,7 +137,6 @@
     Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS ; rouge = moins de 6 h, orange = moins de 24 h).
     Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
-    Stations : mesures horaires PM2.5/PM10 du réseau officiel (AASQA/<a href="https://www.atmo-nouvelleaquitaine.org/">Atmo</a>), via <a href="https://openaq.org/">OpenAQ</a>.
     Indice ATMO : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL).
     Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS (périmètres en zoomant ; feux d'environ 30 ha et plus).
     Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO.
@@ -405,100 +389,6 @@
   document.getElementById('wind').addEventListener('change', loadWind);
   loadWind();
 
-  // ==== Stations PM2.5 : mesures officielles (réseau AASQA/Atmo via OpenAQ) ====
-
-  const pmLegend = document.getElementById('pmlegend');
-  let stationLayer = null;
-
-  function pmColor(v) {
-    if (v < 10) return '#3fae6a';
-    if (v < 20) return '#d9d54a';
-    if (v < 35) return '#f39c2c';
-    if (v < 60) return '#e0442e';
-    return '#8e44ad';
-  }
-
-  async function loadStations() {
-    if (stationLayer) { map.removeLayer(stationLayer); stationLayer = null; }
-    const on = document.getElementById('stations').checked;
-    pmLegend.style.display = on ? '' : 'none';
-    if (!on) return;
-
-    if (!OPENAQ_PROXY.includes('workers.dev') && !OPENAQ_PROXY.startsWith('https://')) {
-      pmLegend.style.display = 'none';
-      notice.textContent = "Stations PM2.5 : l'URL du proxy Cloudflare semble incorrecte " +
-        "(const OPENAQ_PROXY).";
-      notice.style.display = 'block';
-      return;
-    }
-
-    try {
-      // 1) Stations de mesure dans la zone (on récupère PM2.5 et PM10)
-      const locResp = await fetch(
-        OPENAQ_PROXY + '/v3/locations?bbox=-2.0,42.6,2.6,47.2' +
-        '&monitor=true&limit=100');
-      if (!locResp.ok) throw new Error('HTTP ' + locResp.status);
-      let locations = (await locResp.json()).results || [];
-      // On ne garde que les stations mesurant PM2.5 et/ou PM10
-      locations = locations.filter(loc => (loc.sensors || [])
-        .some(s => s.parameter && (s.parameter.id === 2 || s.parameter.id === 1)));
-
-      // 2) Dernière valeur de chaque station (en parallèle, plafonné à 60)
-      const subset = locations.slice(0, 60);
-      const latest = await Promise.all(subset.map(loc =>
-        fetch(OPENAQ_PROXY + '/v3/locations/' + loc.id + '/latest')
-          .then(r => r.ok ? r.json() : null).catch(() => null)
-      ));
-
-      stationLayer = L.layerGroup();
-      let count = 0;
-      subset.forEach((loc, i) => {
-        if (!latest[i] || !latest[i].results) return;
-        // Retrouver les capteurs PM2.5 et PM10 de la station
-        const idsFor = pid => (loc.sensors || [])
-          .filter(s => s.parameter && s.parameter.id === pid)
-          .map(s => s.id);
-        const pm25Ids = idsFor(2), pm10Ids = idsFor(1);
-        const findMes = ids => latest[i].results.find(r =>
-          ids.includes(r.sensorsId) && r.value != null && r.value >= 0);
-        const m25 = findMes(pm25Ids);
-        const m10 = findMes(pm10Ids);
-        if (!m25 && !m10) return;
-
-        // Couleur : PM2.5 en priorité ; sinon PM10 ramené sur une échelle comparable
-        const ref = m25 ? m25.value : m10.value / 2;
-        const main = m25 || m10;
-        const when = main.datetime && main.datetime.local
-          ? main.datetime.local.slice(11, 16) : '';
-        L.circleMarker([loc.coordinates.latitude, loc.coordinates.longitude], {
-          radius: 9, color: '#101418', weight: 2,
-          fillColor: pmColor(ref), fillOpacity: 0.95
-        }).bindPopup(
-          '<b>' + (loc.name || 'Station') + '</b>' +
-          (m25 ? '<br>PM2.5 : <b>' + m25.value.toFixed(1) + ' µg/m³</b>' : '') +
-          (m10 ? '<br>PM10 : <b>' + m10.value.toFixed(1) + ' µg/m³</b>' : '') +
-          (when ? '<br>Mesure de ' + when : '') +
-          '<br><small>Réseau officiel de surveillance (AASQA)</small>'
-        ).addTo(stationLayer);
-        count++;
-      });
-      stationLayer.addTo(map);
-
-      if (count === 0) {
-        notice.textContent = 'Aucune mesure PM2.5 récente disponible sur la zone.';
-        notice.style.display = 'block';
-        setTimeout(() => { notice.style.display = 'none'; }, 6000);
-      }
-    } catch (err) {
-      pmLegend.style.display = 'none';
-      notice.textContent = 'Impossible de charger les stations (proxy indisponible ou quota).';
-      notice.style.display = 'block';
-      setTimeout(() => { notice.style.display = 'none'; }, 8000);
-    }
-  }
-
-  document.getElementById('stations').addEventListener('change', loadStations);
-  loadStations();
 
   // ==== Indice ATMO par commune : flux national Atmo Data (Atmo France / AASQA) ====
   // Configuration vérifiée dans le GetCapabilities du serveur (merci Nicolas !) :
@@ -516,18 +406,19 @@
     if (!on) return;
 
     const today = isoDaysAgo(0);
+    // Couche des polygones de communes (choroplèthe), filtrée sur l'indice du jour
     atmoLayer = L.tileLayer.wms(ATMO_WMS, {
-      layers: 'ind_atmo_tile',
+      layers: 'ind_atmo',
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
       opacity: 0.55,
-      TIME: today + 'T00:00:00Z',
+      CQL_FILTER: 'date_ech DURING ' + today + 'T00:00:00Z/' + today + 'T23:59:59Z',
       attribution: 'Atmo France et les AASQA'
     });
 
-    // Filet de sécurité : si la couche temporelle échoue, bascule sur la couche
-    // complète filtrée par date.
+    // Filet de sécurité : si les polygones échouent, bascule sur la couche
+    // temporelle (rendu en points).
     let errs = 0, ok = 0, fell = false;
     atmoLayer.on('tileload', () => { ok++; });
     atmoLayer.on('tileerror', () => {
@@ -536,12 +427,12 @@
         fell = true;
         map.removeLayer(atmoLayer);
         atmoLayer = L.tileLayer.wms(ATMO_WMS, {
-          layers: 'ind_atmo',
+          layers: 'ind_atmo_tile',
           format: 'image/png',
           transparent: true,
           version: '1.1.1',
           opacity: 0.55,
-          CQL_FILTER: 'date_ech DURING ' + today + 'T00:00:00Z/' + today + 'T23:59:59Z',
+          TIME: today + 'T00:00:00Z',
           attribution: 'Atmo France et les AASQA'
         }).addTo(map);
       }
