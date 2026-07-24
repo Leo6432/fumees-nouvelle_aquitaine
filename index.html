@@ -70,6 +70,13 @@
     padding:8px 14px;font-size:.8rem;color:var(--smoke);z-index:1200;
     display:none;max-width:90%;text-align:center;
   }
+  #pmlegend{
+    position:absolute;left:12px;bottom:26px;z-index:1000;
+    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
+    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
+  }
+  #pmlegend b{color:var(--paper);font-weight:600}
+  #pmlegend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 </style>
 </head>
 <body>
@@ -87,6 +94,7 @@
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
     <label class="toggle"><input type="checkbox" id="fires" checked>Foyers (dernières 48 h)</label>
+    <label class="toggle"><input type="checkbox" id="stations" checked>Stations PM2.5 (mesuré)</label>
     <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
     <label class="toggle"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
     <label class="toggle"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
@@ -98,11 +106,18 @@
 </header>
 
 <div id="map"></div>
+<div id="pmlegend"><b>PM2.5 mesurées (µg/m³)</b><br>
+  <span class="sw" style="background:#3fae6a"></span>0–10 bon<br>
+  <span class="sw" style="background:#d9d54a"></span>10–20 moyen<br>
+  <span class="sw" style="background:#f39c2c"></span>20–35 dégradé<br>
+  <span class="sw" style="background:#e0442e"></span>35–60 mauvais<br>
+  <span class="sw" style="background:#8e44ad"></span>&gt; 60 très mauvais
+</div>
 <div class="notice" id="notice"></div>
 
 <footer>
   Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS, mises à jour plusieurs fois par jour ; rouge = moins de 6 h, orange = moins de 24 h). Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
-  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (conditions actuelles, les flèches indiquent vers où souffle le vent).
+  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (conditions actuelles, les flèches indiquent vers où souffle le vent). Stations PM2.5 : mesures horaires du réseau officiel de surveillance (AASQA/<a href="https://www.atmo-nouvelleaquitaine.org/">Atmo</a>), via <a href="https://openaq.org/">OpenAQ</a>.
   Une image par jour et par satellite — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).
 </footer>
 
@@ -356,6 +371,94 @@
 
   document.getElementById('wind').addEventListener('change', loadWind);
   loadWind();
+
+  // ==== Stations PM2.5 : mesures officielles (réseau AASQA/Atmo via OpenAQ) ====
+  // Clé gratuite : crée un compte sur https://explore.openaq.org/register
+  // puis copie ta clé API (menu du compte) entre les guillemets ci-dessous.
+  const OPENAQ_KEY = '6d1d3ac5699d5e07412f5aa8c5062bdb19fae736291b23732c16c2fd1decd88b';
+
+  const pmLegend = document.getElementById('pmlegend');
+  let stationLayer = null;
+
+  function pmColor(v) {
+    if (v < 10) return '#3fae6a';
+    if (v < 20) return '#d9d54a';
+    if (v < 35) return '#f39c2c';
+    if (v < 60) return '#e0442e';
+    return '#8e44ad';
+  }
+
+  async function loadStations() {
+    if (stationLayer) { map.removeLayer(stationLayer); stationLayer = null; }
+    const on = document.getElementById('stations').checked;
+    pmLegend.style.display = on ? '' : 'none';
+    if (!on) return;
+
+    if (OPENAQ_KEY === 'COLLE_TA_CLE_OPENAQ_ICI' || !OPENAQ_KEY) {
+      pmLegend.style.display = 'none';
+      notice.textContent = "Stations PM2.5 : il manque la clé OpenAQ (gratuite). " +
+        "Voir les instructions dans le code (const OPENAQ_KEY).";
+      notice.style.display = 'block';
+      return;
+    }
+
+    try {
+      const headers = { 'X-API-Key': OPENAQ_KEY };
+      // 1) Stations mesurant les PM2.5 dans la zone
+      const locResp = await fetch(
+        'https://api.openaq.org/v3/locations?bbox=-2.0,42.6,2.6,47.2' +
+        '&parameters_id=2&monitor=true&limit=100', { headers });
+      if (!locResp.ok) throw new Error('HTTP ' + locResp.status);
+      const locations = (await locResp.json()).results || [];
+
+      // 2) Dernière valeur de chaque station (en parallèle, plafonné à 60)
+      const subset = locations.slice(0, 60);
+      const latest = await Promise.all(subset.map(loc =>
+        fetch('https://api.openaq.org/v3/locations/' + loc.id + '/latest',
+          { headers }).then(r => r.ok ? r.json() : null).catch(() => null)
+      ));
+
+      stationLayer = L.layerGroup();
+      let count = 0;
+      subset.forEach((loc, i) => {
+        if (!latest[i] || !latest[i].results) return;
+        // Retrouver le capteur PM2.5 de la station
+        const pmSensorIds = (loc.sensors || [])
+          .filter(s => s.parameter && s.parameter.id === 2)
+          .map(s => s.id);
+        const mes = latest[i].results.find(r => pmSensorIds.includes(r.sensorsId));
+        if (!mes || mes.value == null || mes.value < 0) return;
+
+        const when = mes.datetime && mes.datetime.local
+          ? mes.datetime.local.slice(11, 16) : '';
+        L.circleMarker([loc.coordinates.latitude, loc.coordinates.longitude], {
+          radius: 9, color: '#101418', weight: 2,
+          fillColor: pmColor(mes.value), fillOpacity: 0.95
+        }).bindPopup(
+          '<b>' + (loc.name || 'Station') + '</b><br>' +
+          'PM2.5 : <b>' + mes.value.toFixed(1) + ' µg/m³</b>' +
+          (when ? '<br>Mesure de ' + when : '') +
+          '<br><small>Réseau officiel de surveillance (AASQA)</small>'
+        ).addTo(stationLayer);
+        count++;
+      });
+      stationLayer.addTo(map);
+
+      if (count === 0) {
+        notice.textContent = 'Aucune mesure PM2.5 récente disponible sur la zone.';
+        notice.style.display = 'block';
+        setTimeout(() => { notice.style.display = 'none'; }, 6000);
+      }
+    } catch (err) {
+      pmLegend.style.display = 'none';
+      notice.textContent = 'Impossible de charger les stations (clé OpenAQ invalide ou quota).';
+      notice.style.display = 'block';
+      setTimeout(() => { notice.style.display = 'none'; }, 8000);
+    }
+  }
+
+  document.getElementById('stations').addEventListener('change', loadStations);
+  loadStations();
 </script>
 </body>
 </html>
