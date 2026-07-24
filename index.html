@@ -425,28 +425,70 @@
 
   async function fetchAtmoIndices() {
     // Filtre par code département (code_zone = code INSEE commune, préfixe = dép).
-    // Robuste : indépendant du format de date. On garde ensuite l'échéance récente.
+    // Le WFS GeoServer limite le nombre d'objets renvoyés par requête : on page
+    // explicitement, puis on ne conserve que l'échéance la plus récente.
     const deps = ['16','17','19','23','24','33','40','47','64','79','86','87'];
     const likes = deps.map(d => "code_zone LIKE '" + d + "%'").join(' OR ');
-    const url = ATMO_WFS + '?service=WFS&version=2.0.0&request=GetFeature' +
-      '&typeNames=ind:ind_atmo_tile&outputFormat=application/json&srsName=EPSG:4326' +
-      '&propertyName=code_zone,code_qual,code_pm25,code_pm10,code_o3,code_no2,code_so2,lib_qual,date_ech' +
-      '&CQL_FILTER=' + encodeURIComponent(likes);
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
+
+    const pageSize = 1000;
+    const maxPages = 30; // garde-fou, largement au-dessus du volume attendu
+    const features = [];
+    let startIndex = 0;
+    let numberMatched = null;
+
+    for (let pageNo = 0; pageNo < maxPages; pageNo++) {
+      const params = new URLSearchParams({
+        service: 'WFS',
+        version: '2.0.0',
+        request: 'GetFeature',
+        typeNames: 'ind:ind_atmo_tile',
+        outputFormat: 'application/json',
+        propertyName: 'code_zone,code_qual,code_pm25,code_pm10,code_o3,code_no2,code_so2,lib_qual,date_ech',
+        CQL_FILTER: likes,
+        count: String(pageSize),
+        startIndex: String(startIndex)
+      });
+
+      const r = await fetch(ATMO_WFS + '?' + params.toString());
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      const batch = Array.isArray(data.features) ? data.features : [];
+
+      if (numberMatched === null) {
+        const n = Number(data.numberMatched);
+        if (Number.isFinite(n)) numberMatched = n;
+      }
+
+      features.push(...batch);
+      startIndex += batch.length;
+
+      if (batch.length === 0) break;
+      if (numberMatched !== null && startIndex >= numberMatched) break;
+      if (numberMatched === null && batch.length < pageSize) break;
+    }
+
+    if (numberMatched !== null && features.length < numberMatched) {
+      throw new Error('pagination-incomplete');
+    }
+
     let latest = '';
-    (data.features || []).forEach(f => {
+    features.forEach(f => {
       const d = f.properties && f.properties.date_ech;
-      if (d && d > latest) latest = d;
+      if (d != null && String(d) > latest) latest = String(d);
     });
+
     const map = {};
-    (data.features || []).forEach(f => {
+    features.forEach(f => {
       const p = f.properties || {};
       if (p.code_zone == null) return;
-      if (latest && p.date_ech && p.date_ech !== latest) return;
-      map[String(p.code_zone)] = p;
+      if (latest && p.date_ech != null && String(p.date_ech) !== latest) return;
+      map[String(p.code_zone).trim().padStart(5, '0')] = p;
     });
+
+    console.info(
+      'ATMO :', features.length, 'enregistrements chargés ; échéance', latest,
+      ';', Object.keys(map).length, 'communes retenues.'
+    );
     return map;
   }
 
