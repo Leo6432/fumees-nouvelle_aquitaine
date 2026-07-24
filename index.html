@@ -209,16 +209,26 @@
   const camsControls = document.getElementById('cams-controls');
 
   function windySrc(overlay) {
-    return 'https://embed.windy.com/embed.html?type=map&location=coordinates' +
-      '&zoom=7&lat=44.9&lon=0.0&detailLat=44.9&detailLon=0.0' +
-      '&overlay=' + overlay + '&product=cams&level=surface' +
-      '&calendar=now&menu=false&message=true&marker=false&pressure=false' +
-      '&metricWind=km%2Fh&metricTemp=%C2%B0C';
+    return 'https://embed.windy.com/embed2.html?lat=44.9&lon=0.0&detailLat=44.9&detailLon=0.0' +
+      '&width=650&height=450&zoom=7&level=surface' +
+      '&overlay=' + overlay + '&product=cams' +
+      '&menu=&message=true&marker=&calendar=now&pressure=' +
+      '&type=map&location=coordinates&detail=' +
+      '&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1';
+  }
+
+  function windyLink(overlay) {
+    return 'https://www.windy.com/?' + overlay + ',44.9,0.0,7';
   }
 
   function loadForecast() {
     const overlay = document.getElementById('pollutant').value;
-    forecastDiv.innerHTML = '<iframe src="' + windySrc(overlay) +
+    forecastDiv.innerHTML =
+      '<a href="' + windyLink(overlay) + '" target="_blank" rel="noopener" ' +
+      'style="position:absolute;top:10px;right:10px;z-index:10;background:var(--panel);' +
+      'color:var(--paper);padding:6px 10px;border-radius:6px;font-size:.78rem;' +
+      'text-decoration:none;border:1px solid #38424e">Ouvrir sur Windy ↗</a>' +
+      '<iframe src="' + windySrc(overlay) +
       '" title="Prévision fumée CAMS (Windy)" loading="lazy"></iframe>';
   }
 
