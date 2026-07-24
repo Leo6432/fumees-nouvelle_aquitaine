@@ -424,70 +424,105 @@
   let atmoByInsee = null; // { "33063": {qual, pm25, pm10, o3, no2, so2, lib}, ... }
 
   async function fetchAtmoIndices() {
-    // Filtre par code département (code_zone = code INSEE commune, préfixe = dép).
-    // Le WFS GeoServer limite le nombre d'objets renvoyés par requête : on page
-    // explicitement, puis on ne conserve que l'échéance la plus récente.
+    // Le GeoServer d'Atmo renvoie un HTTP 400 avec certaines requêtes paginées
+    // (startIndex), puis sa réponse d'erreur déclenche un message CORS trompeur.
+    // On interroge donc séparément chaque département, sans pagination :
+    // - URL construite comme la requête simple qui fonctionne dans le navigateur ;
+    // - tri par date décroissante ;
+    // - plafond assez élevé pour couvrir les échéances disponibles d'un département.
     const deps = ['16','17','19','23','24','33','40','47','64','79','86','87'];
-    const likes = deps.map(d => "code_zone LIKE '" + d + "%'").join(' OR ');
-
-    const pageSize = 1000;
-    const maxPages = 30; // garde-fou, largement au-dessus du volume attendu
+    const propertyName =
+      'code_zone,code_qual,code_pm25,code_pm10,code_o3,code_no2,code_so2,lib_qual,date_ech';
     const features = [];
-    let startIndex = 0;
-    let numberMatched = null;
 
-    for (let pageNo = 0; pageNo < maxPages; pageNo++) {
-      const params = new URLSearchParams({
-        service: 'WFS',
-        version: '2.0.0',
-        request: 'GetFeature',
-        typeNames: 'ind:ind_atmo_tile',
-        outputFormat: 'application/json',
-        propertyName: 'code_zone,code_qual,code_pm25,code_pm10,code_o3,code_no2,code_so2,lib_qual,date_ech',
-        CQL_FILTER: likes,
-        count: String(pageSize),
-        startIndex: String(startIndex)
-      });
+    for (const dep of deps) {
+      const filter = "code_zone LIKE '" + dep + "%'";
+      const baseUrl = ATMO_WFS + '?service=WFS&version=2.0.0&request=GetFeature' +
+        '&typeNames=ind:ind_atmo_tile&outputFormat=application/json&srsName=EPSG:4326' +
+        '&propertyName=' + propertyName +
+        '&CQL_FILTER=' + encodeURIComponent(filter);
 
-      const r = await fetch(ATMO_WFS + '?' + params.toString());
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      const batch = Array.isArray(data.features) ? data.features : [];
+      // Trois variantes, de la plus complète à la plus compatible.
+      // La dernière correspond à la forme simple déjà validée dans la console.
+      const urls = [
+        baseUrl + '&count=5000&sortBy=' + encodeURIComponent('date_ech D'),
+        baseUrl + '&sortBy=' + encodeURIComponent('date_ech D'),
+        baseUrl
+      ];
 
-      if (numberMatched === null) {
-        const n = Number(data.numberMatched);
-        if (Number.isFinite(n)) numberMatched = n;
+      let data = null;
+      let lastStatus = null;
+      for (let attempt = 0; attempt < urls.length; attempt++) {
+        const r = await fetch(urls[attempt]);
+        lastStatus = r.status;
+        if (r.ok) {
+          data = await r.json();
+          if (attempt > 0) {
+            console.warn('ATMO : requête de repli utilisée pour le département', dep,
+              '(variante', attempt + 1, ').');
+          }
+          break;
+        }
+        console.warn('ATMO : variante', attempt + 1, 'refusée pour le département',
+          dep, 'HTTP', r.status);
       }
 
+      if (!data) {
+        throw new Error('HTTP ' + lastStatus + ' (département ' + dep + ')');
+      }
+
+      const batch = Array.isArray(data.features) ? data.features : [];
+      if (Number.isFinite(Number(data.numberMatched)) && batch.length < Number(data.numberMatched)) {
+        console.warn('ATMO : réponse partielle pour le département', dep,
+          batch.length + '/' + data.numberMatched, 'objets reçus.');
+      }
       features.push(...batch);
-      startIndex += batch.length;
-
-      if (batch.length === 0) break;
-      if (numberMatched !== null && startIndex >= numberMatched) break;
-      if (numberMatched === null && batch.length < pageSize) break;
     }
 
-    if (numberMatched !== null && features.length < numberMatched) {
-      throw new Error('pagination-incomplete');
-    }
+    // Date civile actuelle en Europe/Paris, indépendante du fuseau du navigateur.
+    const parts = new Intl.DateTimeFormat('fr-FR', {
+      timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const dateParts = {};
+    parts.forEach(part => { if (part.type !== 'literal') dateParts[part.type] = part.value; });
+    const today = dateParts.year + '-' + dateParts.month + '-' + dateParts.day;
 
-    let latest = '';
-    features.forEach(f => {
-      const d = f.properties && f.properties.date_ech;
-      if (d != null && String(d) > latest) latest = String(d);
-    });
+    const exactToday = {};
+    const latestPast = {};
+    const latestAny = {};
 
-    const map = {};
     features.forEach(f => {
       const p = f.properties || {};
       if (p.code_zone == null) return;
-      if (latest && p.date_ech != null && String(p.date_ech) !== latest) return;
-      map[String(p.code_zone).trim().padStart(5, '0')] = p;
+
+      const code = String(p.code_zone).trim().padStart(5, '0');
+      const date = p.date_ech == null ? '' : String(p.date_ech).slice(0, 10);
+      const item = { record: p, date: date };
+
+      if (date === today) exactToday[code] = p;
+
+      if (date && date <= today &&
+          (!latestPast[code] || date > latestPast[code].date)) {
+        latestPast[code] = item;
+      }
+
+      if (!latestAny[code] || date > latestAny[code].date) {
+        latestAny[code] = item;
+      }
     });
 
+    const map = {};
+    Object.keys(latestAny).forEach(code => {
+      map[code] = exactToday[code] ||
+        (latestPast[code] && latestPast[code].record) ||
+        latestAny[code].record;
+    });
+
+    const nbToday = Object.keys(exactToday).length;
     console.info(
-      'ATMO :', features.length, 'enregistrements chargés ; échéance', latest,
-      ';', Object.keys(map).length, 'communes retenues.'
+      'ATMO :', features.length, 'enregistrements reçus ;',
+      nbToday, 'communes avec une valeur au', today, ';',
+      Object.keys(map).length, 'communes retenues avec repli éventuel.'
     );
     return map;
   }
