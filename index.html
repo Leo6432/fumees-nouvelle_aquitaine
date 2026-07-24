@@ -87,6 +87,7 @@
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
     <label class="toggle"><input type="checkbox" id="fires" checked>Foyers (dernières 48 h)</label>
+    <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
     <label class="toggle"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
     <label class="toggle"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
     <span><label for="aiop">Intensité aérosols</label>
@@ -101,7 +102,7 @@
 
 <footer>
   Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS, mises à jour plusieurs fois par jour ; rouge = moins de 6 h, orange = moins de 24 h). Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
-  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO.
+  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (conditions actuelles, les flèches indiquent vers où souffle le vent).
   Une image par jour et par satellite — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).
 </footer>
 
@@ -157,7 +158,7 @@
   // ==== Foyers en direct : API NASA FIRMS ====
   // Clé gratuite à demander ici : https://firms.modaps.eosdis.nasa.gov/api/map_key/
   // puis colle-la entre les guillemets ci-dessous.
-  const FIRMS_KEY = '09c4d137b97f29280eb7734475c19f95';
+  const FIRMS_KEY = 'COLLE_TA_CLE_ICI';
   const FIRMS_BBOX = '-2.0,42.6,2.6,47.2'; // ouest,sud,est,nord
 
   function parseCsv(text) {
@@ -293,6 +294,68 @@
 
   rebuild();
   loadFirms();
+
+  // ==== Vent actuel : modèle ECMWF IFS via Open-Meteo (sans clé) ====
+  map.createPane('wind');
+  map.getPane('wind').style.zIndex = 630;
+  map.getPane('wind').style.pointerEvents = 'none';
+
+  let windLayer = null;
+
+  async function loadWind() {
+    if (windLayer) { map.removeLayer(windLayer); windLayer = null; }
+    if (!document.getElementById('wind').checked) return;
+
+    // Grille de points sur la région
+    const lats = [], lons = [];
+    for (let la = 42.8; la <= 47.2; la += 0.55)
+      for (let lo = -1.9; lo <= 2.6; lo += 0.55) {
+        lats.push(la.toFixed(2));
+        lons.push(lo.toFixed(2));
+      }
+
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast' +
+        '?latitude=' + lats.join(',') + '&longitude=' + lons.join(',') +
+        '&current=wind_speed_10m,wind_direction_10m' +
+        '&models=ecmwf_ifs025&timezone=Europe%2FParis';
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      let data = await resp.json();
+      if (!Array.isArray(data)) data = [data];
+
+      windLayer = L.layerGroup();
+      data.forEach(pt => {
+        const cur = pt.current;
+        if (!cur || cur.wind_direction_10m == null) return;
+        const speed = cur.wind_speed_10m; // km/h
+        // Direction météo = d'où vient le vent ; la flèche pointe vers où il VA.
+        // Le glyphe ➤ pointe vers l'est (90°) → rotation = direction + 180 − 90.
+        const rot = cur.wind_direction_10m + 90;
+        const size = Math.min(13 + speed / 2.5, 30);
+        const color = speed < 12 ? 'rgba(238,241,243,.55)'
+                    : speed < 25 ? 'rgba(238,241,243,.85)'
+                    : '#ffd166';
+        L.marker([pt.latitude, pt.longitude], {
+          pane: 'wind', interactive: false,
+          icon: L.divIcon({
+            className: '',
+            html: '<div style="transform:rotate(' + rot + 'deg);font-size:' + size +
+              'px;color:' + color + ';text-shadow:0 0 3px #000;line-height:1">\u27A4</div>',
+            iconSize: [size, size], iconAnchor: [size / 2, size / 2]
+          })
+        }).addTo(windLayer);
+      });
+      windLayer.addTo(map);
+    } catch (err) {
+      notice.textContent = 'Impossible de charger le vent (Open-Meteo). Réessaie dans un instant.';
+      notice.style.display = 'block';
+      setTimeout(() => { notice.style.display = 'none'; }, 6000);
+    }
+  }
+
+  document.getElementById('wind').addEventListener('change', loadWind);
+  loadWind();
 </script>
 </body>
 </html>
