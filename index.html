@@ -114,7 +114,7 @@
       <option value="code_no2">Dioxyde d'azote (NO₂)</option>
       <option value="code_so2">Dioxyde de soufre (SO₂)</option>
     </select></span>
-    <label class="toggle"><input type="checkbox" id="atmo">Indice ATMO (points)</label>
+    <label class="toggle" title="Couche WMS brute, utile seulement pour contrôler la choroplèthe"><input type="checkbox" id="atmo">Contrôle WMS (points)</label>
     <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
     <label class="toggle"><input type="checkbox" id="burnt">Surfaces brûlées 2026</label>
     <label class="toggle"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
@@ -304,6 +304,8 @@
           new Date(dateInput.value).toLocaleDateString('fr-FR') + ").";
         notice.style.display = 'block';
         rebuild();
+        // Le changement de date doit aussi s'appliquer aux deux couches ATMO.
+        setTimeout(refreshAtmoForSelectedDate, 0);
       }
     });
 
@@ -321,6 +323,7 @@
   document.getElementById('date').addEventListener('change', () => {
     userPickedDate = true;
     rebuild();
+    refreshAtmoForSelectedDate();
   });
   document.getElementById('sat').addEventListener('change', rebuild);
   document.getElementById('fires').addEventListener('change', loadFirms);
@@ -402,14 +405,25 @@
 
 
   const atmoLegend = document.getElementById('atmolegend');
+  const atmoLegendTitle = atmoLegend.querySelector('b');
+
+  function formatDateFr(isoDate) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+    return m ? m[3] + '/' + m[2] + '/' + m[1] : isoDate;
+  }
+
+  function updateAtmoLegend() {
+    const visible = document.getElementById('communes').checked ||
+      document.getElementById('atmo').checked;
+    atmoLegend.style.display = visible ? '' : 'none';
+    atmoLegendTitle.textContent = 'Indice ATMO du ' + formatDateFr(dateInput.value);
+  }
 
   // ==== Communes colorées par l'indice ATMO officiel ====
-  // Contours IGN (insee_com) joints à l'indice ATMO du jour lu directement
-  // depuis le WFS d'Atmo Data (champ code_zone = code INSEE, code_qual = niveau).
-  // Lecture faite par le navigateur du visiteur (le serveur accepte, contrairement
-  // aux requêtes serveur-à-serveur). C'est l'indice ATMO OFFICIEL, par commune.
+  // Une seule date pilote maintenant toute la carte : celle du sélecteur « Jour ».
+  // Le WFS et le WMS reçoivent exactement la même date_ech, ce qui évite de
+  // superposer une prévision J+1 en points à une valeur J/J-1 dans les polygones.
   const ATMO_WFS = 'https://data.atmo-france.org/geoserver/ind/ows';
-  // Couleurs officielles de l'indice ATMO (1=Bon … 6=Extrêmement mauvais, 7=Événement)
   const ATMO_COLORS = {
     1: '#50f0e6', 2: '#50ccaa', 3: '#f0e641',
     4: '#ff5050', 5: '#960032', 6: '#872181', 7: '#888888'
@@ -421,110 +435,90 @@
 
   let communesLayer = null;
   let communesData = null;
-  let atmoByInsee = null; // { "33063": {qual, pm25, pm10, o3, no2, so2, lib}, ... }
+  let atmoByInsee = null;
+  let atmoDataDate = null;
+  let atmoRequestSerial = 0;
 
-  async function fetchAtmoIndices() {
-    // Le GeoServer d'Atmo renvoie un HTTP 400 avec certaines requêtes paginées
-    // (startIndex), puis sa réponse d'erreur déclenche un message CORS trompeur.
-    // On interroge donc séparément chaque département, sans pagination :
-    // - URL construite comme la requête simple qui fonctionne dans le navigateur ;
-    // - tri par date décroissante ;
-    // - plafond assez élevé pour couvrir les échéances disponibles d'un département.
+  function nextIsoDay(isoDate) {
+    const d = new Date(isoDate + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
+  async function fetchAtmoIndices(targetDate) {
+    // Filtrer la date côté serveur est essentiel : un département comme la Gironde
+    // dépasse 1 000 objets dès que plusieurs jours sont mélangés. Pour une seule
+    // date, chaque département reste sous le plafond et aucune commune n'est perdue.
     const deps = ['16','17','19','23','24','33','40','47','64','79','86','87'];
     const propertyName =
-      'code_zone,code_qual,code_pm25,code_pm10,code_o3,code_no2,code_so2,lib_qual,date_ech';
-    const features = [];
+      'code_zone,code_qual,code_pm25,code_pm10,code_o3,code_no2,code_so2,' +
+      'lib_qual,date_ech,date_dif';
+    const mapByCode = {};
+    const nextDate = nextIsoDay(targetDate);
+    let received = 0;
 
     for (const dep of deps) {
-      const filter = "code_zone LIKE '" + dep + "%'";
-      const baseUrl = ATMO_WFS + '?service=WFS&version=2.0.0&request=GetFeature' +
-        '&typeNames=ind:ind_atmo_tile&outputFormat=application/json&srsName=EPSG:4326' +
-        '&propertyName=' + propertyName +
-        '&CQL_FILTER=' + encodeURIComponent(filter);
-
-      // Trois variantes, de la plus complète à la plus compatible.
-      // La dernière correspond à la forme simple déjà validée dans la console.
-      const urls = [
-        baseUrl + '&count=5000&sortBy=' + encodeURIComponent('date_ech D'),
-        baseUrl + '&sortBy=' + encodeURIComponent('date_ech D'),
-        baseUrl
+      const depFilter = "type_zone = 'commune' AND code_zone LIKE '" + dep + "%'";
+      const dateFilters = [
+        "date_ech = '" + targetDate + "T00:00:00Z'",
+        "date_ech = '" + targetDate + "'",
+        'date_ech DURING ' + targetDate + 'T00:00:00Z/' + nextDate + 'T00:00:00Z'
       ];
 
-      let data = null;
-      let lastStatus = null;
-      for (let attempt = 0; attempt < urls.length; attempt++) {
-        const r = await fetch(urls[attempt]);
-        lastStatus = r.status;
-        if (r.ok) {
-          data = await r.json();
-          if (attempt > 0) {
-            console.warn('ATMO : requête de repli utilisée pour le département', dep,
-              '(variante', attempt + 1, ').');
+      let batch = [];
+      let lastError = null;
+
+      for (const dateFilter of dateFilters) {
+        const filter = '(' + depFilter + ') AND (' + dateFilter + ')';
+        const url = ATMO_WFS + '?service=WFS&version=2.0.0&request=GetFeature' +
+          '&typeNames=ind:ind_atmo_tile&outputFormat=application/json' +
+          '&propertyName=' + propertyName + '&count=1000' +
+          '&CQL_FILTER=' + encodeURIComponent(filter);
+
+        try {
+          const r = await fetch(url);
+          if (!r.ok) {
+            lastError = new Error('HTTP ' + r.status);
+            continue;
           }
-          break;
+          const data = await r.json();
+          const candidate = Array.isArray(data.features) ? data.features : [];
+          if (candidate.length) {
+            batch = candidate;
+            break;
+          }
+        } catch (err) {
+          lastError = err;
         }
-        console.warn('ATMO : variante', attempt + 1, 'refusée pour le département',
-          dep, 'HTTP', r.status);
       }
 
-      if (!data) {
-        throw new Error('HTTP ' + lastStatus + ' (département ' + dep + ')');
+      if (!batch.length) {
+        console.warn('ATMO : aucune donnée pour le département', dep,
+          'à la date', targetDate, lastError || '');
+        continue;
       }
 
-      const batch = Array.isArray(data.features) ? data.features : [];
-      if (Number.isFinite(Number(data.numberMatched)) && batch.length < Number(data.numberMatched)) {
-        console.warn('ATMO : réponse partielle pour le département', dep,
-          batch.length + '/' + data.numberMatched, 'objets reçus.');
+      received += batch.length;
+      if (batch.length >= 1000) {
+        console.warn('ATMO : plafond de 1 000 objets atteint pour le département', dep,
+          'à la date', targetDate, '— contrôle recommandé.');
       }
-      features.push(...batch);
+
+      batch.forEach(f => {
+        const p = f.properties || {};
+        if (p.code_zone == null) return;
+        const code = String(p.code_zone).trim().padStart(5, '0');
+        const previous = mapByCode[code];
+        // En cas de doublon pour date_ech, garder la diffusion la plus récente.
+        if (!previous || String(p.date_dif || '') >= String(previous.date_dif || '')) {
+          mapByCode[code] = p;
+        }
+      });
     }
 
-    // Date civile actuelle en Europe/Paris, indépendante du fuseau du navigateur.
-    const parts = new Intl.DateTimeFormat('fr-FR', {
-      timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(new Date());
-    const dateParts = {};
-    parts.forEach(part => { if (part.type !== 'literal') dateParts[part.type] = part.value; });
-    const today = dateParts.year + '-' + dateParts.month + '-' + dateParts.day;
-
-    const exactToday = {};
-    const latestPast = {};
-    const latestAny = {};
-
-    features.forEach(f => {
-      const p = f.properties || {};
-      if (p.code_zone == null) return;
-
-      const code = String(p.code_zone).trim().padStart(5, '0');
-      const date = p.date_ech == null ? '' : String(p.date_ech).slice(0, 10);
-      const item = { record: p, date: date };
-
-      if (date === today) exactToday[code] = p;
-
-      if (date && date <= today &&
-          (!latestPast[code] || date > latestPast[code].date)) {
-        latestPast[code] = item;
-      }
-
-      if (!latestAny[code] || date > latestAny[code].date) {
-        latestAny[code] = item;
-      }
-    });
-
-    const map = {};
-    Object.keys(latestAny).forEach(code => {
-      map[code] = exactToday[code] ||
-        (latestPast[code] && latestPast[code].record) ||
-        latestAny[code].record;
-    });
-
-    const nbToday = Object.keys(exactToday).length;
-    console.info(
-      'ATMO :', features.length, 'enregistrements reçus ;',
-      nbToday, 'communes avec une valeur au', today, ';',
-      Object.keys(map).length, 'communes retenues avec repli éventuel.'
-    );
-    return map;
+    console.info('ATMO :', received, 'enregistrements reçus pour le', targetDate,
+      ';', Object.keys(mapByCode).length, 'communes retenues.');
+    return mapByCode;
   }
 
   const POLLUANT_LIB = {
@@ -532,16 +526,16 @@
     code_o3: 'Ozone', code_no2: 'NO₂', code_so2: 'SO₂'
   };
 
-  // (Re)dessine la couche communes selon le polluant choisi, sans re-télécharger.
   function renderCommunes() {
     if (communesLayer) map.removeLayer(communesLayer);
-    if (!atmoByInsee) return;
+    if (!atmoByInsee || !communesData) return;
     const field = document.getElementById('pollutant').value;
     communesLayer = L.geoJSON(communesData, {
       pane: 'over',
       style: (feature) => {
-        const rec = atmoByInsee[String(feature.properties.insee_com)];
-        const q = rec ? rec[field] : null;
+        const code = String((feature.properties || {}).insee_com || '').padStart(5, '0');
+        const rec = atmoByInsee[code];
+        const q = rec ? Number(rec[field]) : 0;
         return {
           color: '#101418', weight: 0.5, opacity: 0.35,
           fillColor: q ? (ATMO_COLORS[q] || '#5a6472') : '#5a6472',
@@ -550,55 +544,73 @@
       },
       onEachFeature: (feature, layer) => {
         const p = feature.properties || {};
-        const rec = atmoByInsee[String(p.insee_com)];
+        const code = String(p.insee_com || '').padStart(5, '0');
+        const rec = atmoByInsee[code];
         if (rec) {
           const lignes = [
             ['PM2.5', rec.code_pm25], ['PM10', rec.code_pm10], ['Ozone', rec.code_o3],
             ['NO₂', rec.code_no2], ['SO₂', rec.code_so2]
-          ].filter(x => x[1]).map(x => x[0] + ' : ' + (ATMO_LIB[x[1]] || x[1]));
+          ].filter(x => Number(x[1]) > 0)
+            .map(x => x[0] + ' : ' + (ATMO_LIB[Number(x[1])] || x[1]));
           layer.bindPopup('<b>' + (p.nom_commune || 'Commune') + '</b>' +
-            '<br>Indice global : <b>' + (rec.lib_qual || ATMO_LIB[rec.code_qual] || '?') + '</b>' +
+            '<br>Indice global : <b>' +
+            (rec.lib_qual || ATMO_LIB[Number(rec.code_qual)] || '?') + '</b>' +
             (lignes.length ? '<br><small>' + lignes.join('<br>') + '</small>' : '') +
-            '<br><small>Indice officiel du jour (Atmo France / AASQA)</small>');
+            '<br><small>Indice officiel du ' + formatDateFr(atmoDataDate) +
+            ' (Atmo France / AASQA)</small>');
         } else {
           layer.bindPopup('<b>' + (p.nom_commune || 'Commune') + '</b>' +
-            '<br><small>Indice non disponible aujourd\'hui.</small>');
+            '<br><small>Indice non disponible le ' +
+            formatDateFr(atmoDataDate || dateInput.value) + '.</small>');
         }
       }
     }).addTo(map);
   }
 
-    async function toggleCommunes() {
+  async function toggleCommunes() {
     const on = document.getElementById('communes').checked;
-    atmoLegend.style.display = on ? '' : 'none';
+    updateAtmoLegend();
     if (!on) {
+      atmoRequestSerial++;
       if (communesLayer) map.removeLayer(communesLayer);
       return;
     }
 
-    notice.textContent = 'Chargement de l\'indice ATMO par commune…';
+    const requestId = ++atmoRequestSerial;
+    const targetDate = dateInput.value;
+    notice.textContent = 'Chargement de l\'indice ATMO du ' +
+      formatDateFr(targetDate) + ' par commune…';
     notice.style.display = 'block';
+
     try {
       if (!communesData) {
         const r = await fetch('communes_na.geojson');
         if (!r.ok) throw new Error('geojson');
         communesData = await r.json();
       }
-      atmoByInsee = await fetchAtmoIndices();
-      const nb = Object.keys(atmoByInsee).length;
-      if (nb === 0) throw new Error('no-data');
 
+      const nextMap = await fetchAtmoIndices(targetDate);
+      if (requestId !== atmoRequestSerial ||
+          !document.getElementById('communes').checked ||
+          dateInput.value !== targetDate) return;
+
+      if (Object.keys(nextMap).length === 0) throw new Error('no-data');
+      atmoByInsee = nextMap;
+      atmoDataDate = targetDate;
       renderCommunes();
       notice.style.display = 'none';
+      updateAtmoLegend();
     } catch (err) {
+      if (requestId !== atmoRequestSerial) return;
+      console.error('ATMO communes :', err);
       notice.textContent = (err.message === 'no-data')
-        ? 'Indice ATMO du jour pas encore publié (mise à jour vers 13h). Réessaie plus tard.'
-        : 'Impossible de charger l\'indice par commune (fichier ou serveur indisponible).';
+        ? 'Aucun indice ATMO disponible pour le ' + formatDateFr(targetDate) + '.'
+        : 'Impossible de charger l\'indice ATMO par commune.';
       notice.style.display = 'block';
       setTimeout(() => { notice.style.display = 'none'; }, 8000);
       document.getElementById('communes').checked = false;
-      atmoLegend.style.display = 'none';
       document.getElementById('pollutant-wrap').style.display = 'none';
+      updateAtmoLegend();
     }
   }
 
@@ -610,10 +622,8 @@
   document.getElementById('pollutant').addEventListener('change', renderCommunes);
 
   // ==== Indice ATMO : flux national Atmo Data (Atmo France / AASQA) ====
-  // Couche temporelle officielle ind_atmo_tile, rendue en points par le serveur.
-  // Note : la choroplèthe par communes n'est pas accessible depuis un site
-  // statique (le serveur d'Atmo bloque la lecture des données hors navigateur) ;
-  // le détail par commune est proposé via le lien de la légende.
+  // Couche WMS officielle rendue en points par le serveur.
+  // Elle sert ici de contrôle visuel et reçoit exactement la même date que le WFS.
   const ATMO_WMS = 'https://data.atmo-france.org/geoserver/ind/ows';
 
   let atmoLayer = null;
@@ -621,18 +631,26 @@
   function toggleAtmo() {
     if (atmoLayer) { map.removeLayer(atmoLayer); atmoLayer = null; }
     const on = document.getElementById('atmo').checked;
-    atmoLegend.style.display = on ? '' : 'none';
+    updateAtmoLegend();
     if (!on) return;
 
+    const targetDate = dateInput.value;
     atmoLayer = L.tileLayer.wms(ATMO_WMS, {
       layers: 'ind_atmo_tile',
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
       opacity: 0.85,
-      TIME: isoDaysAgo(0) + 'T00:00:00Z',
+      TIME: targetDate + 'T00:00:00Z',
       attribution: 'Atmo France et les AASQA'
     }).addTo(map);
+    console.info('ATMO WMS : date demandée', targetDate);
+  }
+
+  function refreshAtmoForSelectedDate() {
+    updateAtmoLegend();
+    if (document.getElementById('communes').checked) toggleCommunes();
+    if (document.getElementById('atmo').checked) toggleAtmo();
   }
 
   document.getElementById('atmo').addEventListener('change', toggleAtmo);
