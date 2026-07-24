@@ -63,6 +63,16 @@
     font-size:.72rem;padding:6px 16px;line-height:1.5;
   }
   footer a{color:var(--paper)}
+  footer .warn{display:block}
+  footer details{margin-top:2px}
+  footer summary{
+    cursor:pointer;color:var(--paper);font-weight:600;
+    list-style-position:inside;user-select:none;
+  }
+  footer details[open] summary{margin-bottom:2px}
+  @media (max-width:600px){
+    footer{font-size:.68rem;padding:5px 10px}
+  }
   .leaflet-container{background:#0b0e11}
   .notice{
     position:absolute;left:50%;top:70px;transform:translateX(-50%);
@@ -135,9 +145,18 @@
 <div class="notice" id="notice"></div>
 
 <footer>
-  Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS, mises à jour plusieurs fois par jour ; rouge = moins de 6 h, orange = moins de 24 h). Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
-  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (conditions actuelles, les flèches indiquent vers où souffle le vent). Stations PM2.5 : mesures horaires du réseau officiel de surveillance (AASQA/<a href="https://www.atmo-nouvelleaquitaine.org/">Atmo</a>), via <a href="https://openaq.org/">OpenAQ</a>. Indice ATMO : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL). Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS (périmètres visibles en zoomant, points en vue régionale ; feux d'environ 30 ha et plus).
-  Une image par jour et par satellite — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).
+  <span class="warn">Une image satellite par jour — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).</span>
+  <details>
+    <summary>Sources &amp; crédits</summary>
+    Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu).
+    Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS ; rouge = moins de 6 h, orange = moins de 24 h).
+    Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
+    Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
+    Stations : mesures horaires PM2.5/PM10 du réseau officiel (AASQA/<a href="https://www.atmo-nouvelleaquitaine.org/">Atmo</a>), via <a href="https://openaq.org/">OpenAQ</a>.
+    Indice ATMO : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL).
+    Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS (périmètres en zoomant ; feux d'environ 30 ha et plus).
+    Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO.
+  </details>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -189,10 +208,13 @@
   let fireLayer = null;
   let aiLayer = null;
 
-  // ==== Foyers en direct : API NASA FIRMS ====
-  // Clé gratuite à demander ici : https://firms.modaps.eosdis.nasa.gov/api/map_key/
-  // puis colle-la entre les guillemets ci-dessous.
-  const FIRMS_KEY = '09c4d137b97f29280eb7734475c19f95';
+  // Proxy Cloudflare Worker : détient les clés OpenAQ et FIRMS (secrets),
+  // le site ne contient aucune clé. Slash final retiré automatiquement.
+  const OPENAQ_PROXY = 'https://fumees-openaq.nicolaslecorvec.workers.dev'
+    .replace(/\/+$/, '');
+
+  // ==== Foyers en direct : API NASA FIRMS, via le proxy Cloudflare ====
+  // La clé FIRMS est détenue par le Worker (secret FIRMS_KEY), pas par le site.
   const FIRMS_BBOX = '-2.0,42.6,2.6,47.2'; // ouest,sud,est,nord
 
   function parseCsv(text) {
@@ -218,20 +240,11 @@
     if (fireLayer) { map.removeLayer(fireLayer); fireLayer = null; }
     if (!document.getElementById('fires').checked) return;
 
-    // La clé est une suite de 32 caractères hexadécimaux ; sinon elle est absente ou mal collée
-    if (!/^[0-9a-f]{32}$/i.test(FIRMS_KEY)) {
-      notice.textContent = "Foyers en direct : clé FIRMS absente ou mal collée. " +
-        "Voir les instructions dans le code (const FIRMS_KEY).";
-      notice.style.display = 'block';
-      return;
-    }
-
     try {
       const sources = ['VIIRS_NOAA20_NRT', 'VIIRS_SNPP_NRT'];
       const all = [];
       for (const s of sources) {
-        const url = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv/' +
-          FIRMS_KEY + '/' + s + '/' + FIRMS_BBOX + '/2';
+        const url = OPENAQ_PROXY + '/firms/' + s + '/' + FIRMS_BBOX + '/2';
         const resp = await fetch(url);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         all.push(...parseCsv(await resp.text()));
@@ -393,11 +406,6 @@
   loadWind();
 
   // ==== Stations PM2.5 : mesures officielles (réseau AASQA/Atmo via OpenAQ) ====
-  // Les appels passent par un proxy Cloudflare Worker qui détient la clé API :
-  // elle n'apparaît ni ici, ni dans le dépôt.
-  // Le slash final éventuel est retiré automatiquement.
-  const OPENAQ_PROXY = 'https://fumees-openaq.nicolaslecorvec.workers.dev'
-    .replace(/\/+$/, '');
 
   const pmLegend = document.getElementById('pmlegend');
   let stationLayer = null;
@@ -493,82 +501,52 @@
   loadStations();
 
   // ==== Indice ATMO par commune : flux national Atmo Data (Atmo France / AASQA) ====
-  // Le serveur bloque la découverte automatique, donc le site teste plusieurs
-  // configurations plausibles et retient la première qui répond.
-  const ATMO_CANDIDATES = [
-    { url: 'https://data.atmo-france.org/geoserver/ind/wms', layer: 'ind:ind_atmo' },
-    { url: 'https://data.atmo-france.org/geoserver/ind/wms', layer: 'ind_atmo' },
-    { url: 'https://data.atmo-france.org/geoserver/wms',     layer: 'ind:ind_atmo' },
-    { url: 'https://data.atmo-france.org/geoserver/ows',     layer: 'ind_atmo' }
-  ];
+  // Configuration vérifiée dans le GetCapabilities du serveur (merci Nicolas !) :
+  // endpoint /geoserver/ind/ows, couche ind_atmo_tile avec dimension temporelle,
+  // projections acceptées : EPSG:3857 (celle de la carte) et CRS:84.
+  const ATMO_WMS = 'https://data.atmo-france.org/geoserver/ind/ows';
 
   const atmoLegend = document.getElementById('atmolegend');
   let atmoLayer = null;
-  let atmoConfig = null; // configuration validée, mémorisée pour la session
 
-  // Teste une configuration en chargeant une seule image GetMap :
-  // une image valide se charge, une erreur GeoServer (XML) échoue.
-  function probeAtmo(cand, cql) {
-    return new Promise(resolve => {
-      const p = new URLSearchParams({
-        service: 'WMS', version: '1.1.1', request: 'GetMap',
-        layers: cand.layer, styles: '', format: 'image/png', transparent: 'true',
-        srs: 'EPSG:4326', bbox: '-2.0,42.6,2.6,47.2',
-        width: '64', height: '64', CQL_FILTER: cql
-      });
-      const img = new Image();
-      const timer = setTimeout(() => resolve(false), 8000);
-      img.onload = () => { clearTimeout(timer); resolve(true); };
-      img.onerror = () => { clearTimeout(timer); resolve(false); };
-      img.src = cand.url + '?' + p.toString();
-    });
-  }
-
-  async function toggleAtmo() {
+  function toggleAtmo() {
     if (atmoLayer) { map.removeLayer(atmoLayer); atmoLayer = null; }
     const on = document.getElementById('atmo').checked;
     atmoLegend.style.display = on ? '' : 'none';
     if (!on) return;
 
     const today = isoDaysAgo(0);
-    const cqlVariants = [
-      "date_ech = '" + today + "'",
-      "date_ech DURING " + today + "T00:00:00Z/" + today + "T23:59:59Z"
-    ];
-
-    if (!atmoConfig) {
-      notice.textContent = 'Indice ATMO : recherche du flux Atmo Data…';
-      notice.style.display = 'block';
-      outer:
-      for (const cand of ATMO_CANDIDATES) {
-        for (const cql of cqlVariants) {
-          if (await probeAtmo(cand, cql)) {
-            atmoConfig = { ...cand, cql: cql };
-            break outer;
-          }
-        }
-      }
-      notice.style.display = 'none';
-    }
-
-    if (!atmoConfig) {
-      notice.textContent = "Indice ATMO : aucun flux Atmo Data n'a répondu. " +
-        "Ouvre map.atmo-france.org → « accéder aux flux » et transmets l'URL affichée.";
-      notice.style.display = 'block';
-      setTimeout(() => { notice.style.display = 'none'; }, 10000);
-      document.getElementById('atmo').checked = false;
-      atmoLegend.style.display = 'none';
-      return;
-    }
-
-    atmoLayer = L.tileLayer.wms(atmoConfig.url, {
-      layers: atmoConfig.layer,
+    atmoLayer = L.tileLayer.wms(ATMO_WMS, {
+      layers: 'ind_atmo_tile',
       format: 'image/png',
       transparent: true,
+      version: '1.1.1',
       opacity: 0.55,
-      CQL_FILTER: atmoConfig.cql,
+      TIME: today + 'T00:00:00Z',
       attribution: 'Atmo France et les AASQA'
-    }).addTo(map);
+    });
+
+    // Filet de sécurité : si la couche temporelle échoue, bascule sur la couche
+    // complète filtrée par date.
+    let errs = 0, ok = 0, fell = false;
+    atmoLayer.on('tileload', () => { ok++; });
+    atmoLayer.on('tileerror', () => {
+      errs++;
+      if (!fell && errs > 3 && ok === 0) {
+        fell = true;
+        map.removeLayer(atmoLayer);
+        atmoLayer = L.tileLayer.wms(ATMO_WMS, {
+          layers: 'ind_atmo',
+          format: 'image/png',
+          transparent: true,
+          version: '1.1.1',
+          opacity: 0.55,
+          CQL_FILTER: 'date_ech DURING ' + today + 'T00:00:00Z/' + today + 'T23:59:59Z',
+          attribution: 'Atmo France et les AASQA'
+        }).addTo(map);
+      }
+    });
+    atmoLayer.addTo(map);
   }
 
   document.getElementById('atmo').addEventListener('change', toggleAtmo);
@@ -589,6 +567,7 @@
       version: '1.1.1',
       opacity: 0.8,
       pane: 'over',
+      tileSize: 512,
       // Toute la saison en cours, du 1er janvier à aujourd'hui
       TIME: new Date().getFullYear() + '-01-01/' + isoDaysAgo(0),
       attribution: 'EFFIS © UE, Copernicus EMS'
