@@ -77,6 +77,13 @@
   }
   #pmlegend b{color:var(--paper);font-weight:600}
   #pmlegend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+  #atmolegend{
+    position:absolute;right:12px;bottom:26px;z-index:1000;display:none;
+    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
+    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
+  }
+  #atmolegend b{color:var(--paper);font-weight:600}
+  #atmolegend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 </style>
 </head>
 <body>
@@ -95,6 +102,7 @@
     </select></span>
     <label class="toggle"><input type="checkbox" id="fires" checked>Foyers (dernières 48 h)</label>
     <label class="toggle"><input type="checkbox" id="stations" checked>Stations PM2.5 (mesuré)</label>
+    <label class="toggle"><input type="checkbox" id="atmo">Indice ATMO (communes)</label>
     <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
     <label class="toggle"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
     <label class="toggle"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
@@ -113,11 +121,20 @@
   <span class="sw" style="background:#e0442e"></span>35–60 mauvais<br>
   <span class="sw" style="background:#8e44ad"></span>&gt; 60 très mauvais
 </div>
+<div id="atmolegend"><b>Indice ATMO du jour</b><br>
+  <span class="sw" style="background:#50f0e6"></span>Bon<br>
+  <span class="sw" style="background:#50ccaa"></span>Moyen<br>
+  <span class="sw" style="background:#f0e641"></span>Dégradé<br>
+  <span class="sw" style="background:#ff5050"></span>Mauvais<br>
+  <span class="sw" style="background:#960032"></span>Très mauvais<br>
+  <span class="sw" style="background:#872181"></span>Extrêmement mauvais<br>
+  <span class="sw" style="background:#888"></span>Événement (non représentatif)
+</div>
 <div class="notice" id="notice"></div>
 
 <footer>
   Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS, mises à jour plusieurs fois par jour ; rouge = moins de 6 h, orange = moins de 24 h). Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
-  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (conditions actuelles, les flèches indiquent vers où souffle le vent). Stations PM2.5 : mesures horaires du réseau officiel de surveillance (AASQA/<a href="https://www.atmo-nouvelleaquitaine.org/">Atmo</a>), via <a href="https://openaq.org/">OpenAQ</a>.
+  Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (conditions actuelles, les flèches indiquent vers où souffle le vent). Stations PM2.5 : mesures horaires du réseau officiel de surveillance (AASQA/<a href="https://www.atmo-nouvelleaquitaine.org/">Atmo</a>), via <a href="https://openaq.org/">OpenAQ</a>. Indice ATMO : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL).
   Une image par jour et par satellite — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).
 </footer>
 
@@ -461,6 +478,50 @@
 
   document.getElementById('stations').addEventListener('change', loadStations);
   loadStations();
+
+  // ==== Indice ATMO par commune : flux national Atmo Data (Atmo France / AASQA) ====
+  // Service WMS : le serveur dessine la carte, le site ne charge que des images.
+  // Si la couche reste vide, récupère l'URL exacte du flux sur
+  // https://map.atmo-france.org/ (bouton "accéder aux flux") et ajuste ces constantes.
+  const ATMO_WMS = 'https://data.atmo-france.org/geoserver/ind/wms';
+  const ATMO_LAYER = 'ind:ind_atmo';
+
+  const atmoLegend = document.getElementById('atmolegend');
+  let atmoLayer = null;
+
+  function toggleAtmo() {
+    if (atmoLayer) { map.removeLayer(atmoLayer); atmoLayer = null; }
+    const on = document.getElementById('atmo').checked;
+    atmoLegend.style.display = on ? '' : 'none';
+    if (!on) return;
+
+    // Indice du jour uniquement (publié chaque jour, mis à jour vers 13 h)
+    const today = isoDaysAgo(0);
+    atmoLayer = L.tileLayer.wms(ATMO_WMS, {
+      layers: ATMO_LAYER,
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.55,
+      CQL_FILTER: "date_ech = '" + today + "'",
+      attribution: 'Atmo France et les AASQA'
+    });
+
+    // Garde-fou : si toutes les tuiles WMS échouent, on prévient au lieu de rester muet
+    let errs = 0, ok = 0;
+    atmoLayer.on('tileerror', () => {
+      errs++;
+      if (errs > 3 && ok === 0) {
+        notice.textContent = "Indice ATMO : le flux Atmo Data ne répond pas comme prévu. " +
+          "Vérifie l'URL du flux sur map.atmo-france.org (voir le code, const ATMO_WMS).";
+        notice.style.display = 'block';
+        setTimeout(() => { notice.style.display = 'none'; }, 8000);
+      }
+    });
+    atmoLayer.on('tileload', () => { ok++; });
+    atmoLayer.addTo(map);
+  }
+
+  document.getElementById('atmo').addEventListener('change', toggleAtmo);
 </script>
 </body>
 </html>
