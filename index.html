@@ -86,7 +86,7 @@
       <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
-    <label class="toggle"><input type="checkbox" id="fires" checked>Foyers détectés</label>
+    <label class="toggle"><input type="checkbox" id="fires" checked>Foyers (dernières 48 h)</label>
     <label class="toggle"><input type="checkbox" id="aerosol">Aérosols (indice UV)</label>
     <label class="toggle"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
     <span><label for="aiop">Intensité aérosols</label>
@@ -100,7 +100,7 @@
 <div class="notice" id="notice"></div>
 
 <footer>
-  Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS 375 m. Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
+  Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu). Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS, mises à jour plusieurs fois par jour ; rouge = moins de 6 h, orange = moins de 24 h). Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
   Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO.
   Une image par jour et par satellite — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).
 </footer>
@@ -154,13 +154,90 @@
   let fireLayer = null;
   let aiLayer = null;
 
+  // ==== Foyers en direct : API NASA FIRMS ====
+  // Clé gratuite à demander ici : https://firms.modaps.eosdis.nasa.gov/api/map_key/
+  // puis colle-la entre les guillemets ci-dessous.
+  const FIRMS_KEY = '09c4d137b97f29280eb7734475c19f95';
+  const FIRMS_BBOX = '-2.0,42.6,2.6,47.2'; // ouest,sud,est,nord
+
+  function parseCsv(text) {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+    const head = lines[0].split(',');
+    return lines.slice(1).map(l => {
+      const cells = l.split(',');
+      const row = {};
+      head.forEach((h, i) => row[h.trim()] = cells[i]);
+      return row;
+    });
+  }
+
+  function fireAgeHours(row) {
+    // acq_date "2026-07-24" + acq_time "1330" (UTC)
+    const t = (row.acq_time || '0').padStart(4, '0');
+    const when = new Date(row.acq_date + 'T' + t.slice(0, 2) + ':' + t.slice(2) + ':00Z');
+    return (Date.now() - when.getTime()) / 3600000;
+  }
+
+  async function loadFirms() {
+    if (fireLayer) { map.removeLayer(fireLayer); fireLayer = null; }
+    if (!document.getElementById('fires').checked) return;
+
+    if (FIRMS_KEY === 'COLLE_TA_CLE_ICI' || !FIRMS_KEY) {
+      notice.textContent = "Foyers en direct : il manque la clé FIRMS (gratuite). " +
+        "Voir les instructions dans le code (const FIRMS_KEY).";
+      notice.style.display = 'block';
+      return;
+    }
+
+    try {
+      const sources = ['VIIRS_NOAA20_NRT', 'VIIRS_SNPP_NRT'];
+      const all = [];
+      for (const s of sources) {
+        const url = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv/' +
+          FIRMS_KEY + '/' + s + '/' + FIRMS_BBOX + '/2';
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        all.push(...parseCsv(await resp.text()));
+      }
+
+      fireLayer = L.layerGroup();
+      all.forEach(row => {
+        const lat = parseFloat(row.latitude), lon = parseFloat(row.longitude);
+        if (isNaN(lat) || isNaN(lon)) return;
+        const age = fireAgeHours(row);
+        const frp = parseFloat(row.frp) || 0;
+        const color = age < 6 ? '#ff2d13' : (age < 24 ? '#ff8c1a' : '#a8712f');
+        L.circleMarker([lat, lon], {
+          radius: Math.min(4 + Math.sqrt(frp) / 2, 14),
+          color: '#000', weight: 1, fillColor: color, fillOpacity: 0.85
+        }).bindPopup(
+          '<b>Foyer détecté</b><br>' +
+          row.acq_date + ' ' + (row.acq_time || '').padStart(4, '0').replace(/(..)(..)/, '$1h$2 UTC') +
+          '<br>Satellite : ' + (row.satellite || '?') +
+          '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
+          '<br>Confiance : ' + (row.confidence || '?')
+        ).addTo(fireLayer);
+      });
+      fireLayer.addTo(map);
+
+      if (all.length === 0) {
+        notice.textContent = 'Aucun foyer détecté par VIIRS sur la zone ces dernières 48 h.';
+        notice.style.display = 'block';
+        setTimeout(() => { notice.style.display = 'none'; }, 6000);
+      }
+    } catch (err) {
+      notice.textContent = 'Impossible de charger les foyers FIRMS (clé invalide, quota, ou réseau).';
+      notice.style.display = 'block';
+    }
+  }
+
   function rebuild() {
     const date = dateInput.value;
     const sat = document.getElementById('sat').value;
     const opacity = document.getElementById('op').value / 100;
 
     if (satLayer) map.removeLayer(satLayer);
-    if (fireLayer) map.removeLayer(fireLayer);
     if (aiLayer) map.removeLayer(aiLayer);
 
     satLayer = L.tileLayer(gibsUrl(sat, date, 'jpg'), {
@@ -186,16 +263,6 @@
       }
     });
 
-    if (document.getElementById('fires').checked) {
-      const fireProduct = sat.includes('NOAA20')
-        ? 'VIIRS_NOAA20_Thermal_Anomalies_375m_All'
-        : 'VIIRS_SNPP_Thermal_Anomalies_375m_All';
-      fireLayer = L.tileLayer(gibsUrl(fireProduct, date, 'png'), {
-        maxNativeZoom: 9, maxZoom: 12, pane: 'over',
-        attribution: 'NASA FIRMS/VIIRS'
-      }).addTo(map);
-    }
-
     // Indice d'aérosols UV (OMPS, Suomi-NPP) : panaches de fumée, cendres, poussières
     // Résolution 2 km → jeu de tuiles Level6
     if (document.getElementById('aerosol').checked) {
@@ -212,7 +279,7 @@
     rebuild();
   });
   document.getElementById('sat').addEventListener('change', rebuild);
-  document.getElementById('fires').addEventListener('change', rebuild);
+  document.getElementById('fires').addEventListener('change', loadFirms);
   document.getElementById('aerosol').addEventListener('change', rebuild);
   document.getElementById('op').addEventListener('input', () => {
     if (satLayer) satLayer.setOpacity(document.getElementById('op').value / 100);
@@ -225,6 +292,7 @@
   });
 
   rebuild();
+  loadFirms();
 </script>
 </body>
 </html>
