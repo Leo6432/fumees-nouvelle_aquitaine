@@ -22,11 +22,17 @@
     --paper:#eef1f3;
   }
   *{box-sizing:border-box;margin:0}
-  html,body{height:100%}
+  html,body{
+    width:100%;
+    height:100%;
+  }
   body{
     font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
     background:var(--ink);color:var(--paper);
     display:flex;flex-direction:column;
+    height:100vh;
+    height:100dvh;
+    overflow:hidden;
   }
   header{
     background:var(--panel);
@@ -437,6 +443,61 @@
     position: mobileView ? 'topright' : 'topleft'
   }).addTo(map);
 
+  // Sur mobile, la hauteur disponible change encore après le premier rendu
+  // lorsque la barre d'adresse du navigateur se place. Leaflet doit alors
+  // recalculer explicitement la taille de son conteneur.
+  let mapResizeTimer = null;
+
+  function refreshMapSize() {
+    if (mapResizeTimer) clearTimeout(mapResizeTimer);
+
+    requestAnimationFrame(() => {
+      map.invalidateSize({
+        animate: false,
+        pan: false
+      });
+    });
+
+    // Plusieurs passages courts couvrent le chargement initial, les polices,
+    // la barre d'adresse mobile et les contrôles qui changent de hauteur.
+    [80, 250, 700, 1400].forEach(delay => {
+      setTimeout(() => {
+        map.invalidateSize({
+          animate: false,
+          pan: false
+        });
+      }, delay);
+    });
+
+    mapResizeTimer = setTimeout(() => {
+      map.invalidateSize({
+        animate: false,
+        pan: false
+      });
+      mapResizeTimer = null;
+    }, 1800);
+  }
+
+  window.addEventListener('load', refreshMapSize, { once: true });
+  window.addEventListener('resize', refreshMapSize);
+  window.addEventListener('orientationchange', refreshMapSize);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', refreshMapSize);
+  }
+
+  if ('ResizeObserver' in window) {
+    const mapResizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        map.invalidateSize({
+          animate: false,
+          pan: false
+        });
+      });
+    });
+    mapResizeObserver.observe(document.getElementById('map'));
+  }
+
   // La légende FIRMS reste en haut à gauche.
   const firmsLegendControl = L.control({ position: 'topleft' });
   let firmsLegendEl = null;
@@ -494,9 +555,35 @@
   dateInput.max = isoDaysAgo(0);
   dateInput.min = '2015-11-24'; // début des archives VIIRS
   // On tente l'image du jour ; si elle n'est pas encore publiée, on recule automatiquement
+  // Au démarrage, on cherche automatiquement la dernière image disponible :
+  // aujourd'hui d'abord, puis les jours précédents si nécessaire.
   dateInput.value = isoDaysAgo(0);
-  let autoStep = 0;          // nombre de jours reculés automatiquement (max 2)
-  let userPickedDate = false; // l'utilisateur a choisi une date : plus de recul auto
+  const MAX_AUTO_BACK_DAYS = 7;
+  let autoStep = 0;
+  let userPickedDate = false;
+  let satelliteBuildSerial = 0;
+
+  function tryPreviousSatelliteDate(buildId) {
+    if (
+      buildId !== satelliteBuildSerial ||
+      userPickedDate ||
+      autoStep >= MAX_AUTO_BACK_DAYS
+    ) {
+      return false;
+    }
+
+    autoStep++;
+    dateInput.value = isoDaysAgo(autoStep);
+
+    notice.textContent =
+      'Recherche de la dernière image disponible… ' +
+      formatDateFr(dateInput.value);
+    notice.style.display = 'block';
+
+    rebuild();
+    setTimeout(refreshAtmoForSelectedDate, 0);
+    return true;
+  }
 
   let satLayer = null;
   let sentinel3Layer = null;
@@ -892,6 +979,7 @@
   }
 
   function rebuild() {
+    const buildId = ++satelliteBuildSerial;
     const date = dateInput.value;
     const sat = document.getElementById('sat').value;
     const opacity = document.getElementById('op').value / 100;
@@ -939,13 +1027,32 @@
       ).addTo(map);
 
       sentinel3Layer.on('load', () => {
-        notice.style.display = 'none';
+        if (buildId !== satelliteBuildSerial) return;
+
+        notice.textContent =
+          'Dernière image Sentinel-3 disponible : ' +
+          formatDateFr(date) + '.';
+        notice.style.display = 'block';
+
+        setTimeout(() => {
+          if (buildId === satelliteBuildSerial) {
+            notice.style.display = 'none';
+          }
+        }, 3500);
+
+        refreshMapSize();
       });
 
       sentinel3Layer.on('error', () => {
+        if (buildId !== satelliteBuildSerial) return;
+
+        if (tryPreviousSatelliteDate(buildId)) return;
+
         notice.textContent =
-          'Image Sentinel-3 OLCI indisponible pour cette date, ' +
-          'ou accès Copernicus non configuré dans le Worker.';
+          userPickedDate
+            ? 'Image Sentinel-3 OLCI indisponible pour cette date.'
+            : 'Aucune image Sentinel-3 OLCI trouvée durant les ' +
+              MAX_AUTO_BACK_DAYS + ' derniers jours, ou accès Copernicus indisponible.';
         notice.style.display = 'block';
       });
 
@@ -963,33 +1070,46 @@
       let stepped = false;
 
       satLayer.on('tileload', () => {
+        if (buildId !== satelliteBuildSerial) return;
+
         loads++;
+
+        if (loads === 1) {
+          notice.textContent =
+            'Dernière image disponible : ' +
+            formatDateFr(date) + '.';
+          notice.style.display = 'block';
+
+          setTimeout(() => {
+            if (buildId === satelliteBuildSerial) {
+              notice.style.display = 'none';
+            }
+          }, 3000);
+
+          refreshMapSize();
+        }
       });
 
       satLayer.on('tileerror', () => {
+        if (buildId !== satelliteBuildSerial) return;
+
         errors++;
 
         if (
           !stepped &&
-          !userPickedDate &&
-          autoStep < 2 &&
           errors > 4 &&
           loads === 0
         ) {
           stepped = true;
-          autoStep++;
-          dateInput.value = isoDaysAgo(autoStep);
+
+          if (tryPreviousSatelliteDate(buildId)) return;
 
           notice.textContent =
-            "Image du jour pas encore publiée — affichage de la " +
-            "dernière disponible (" +
-            new Date(dateInput.value + 'T12:00:00Z')
-              .toLocaleDateString('fr-FR') +
-            ").";
+            userPickedDate
+              ? 'Image satellite indisponible pour cette date.'
+              : 'Aucune image satellite trouvée durant les ' +
+                MAX_AUTO_BACK_DAYS + ' derniers jours.';
           notice.style.display = 'block';
-
-          rebuild();
-          setTimeout(refreshAtmoForSelectedDate, 0);
         }
       });
     }
@@ -1017,11 +1137,23 @@
 
   document.getElementById('date').addEventListener('change', () => {
     userPickedDate = true;
+    autoStep = 0;
     rebuild();
     refreshAtmoForSelectedDate();
     if (document.getElementById('burnt').checked) updateBurntForZoom();
   });
-  document.getElementById('sat').addEventListener('change', rebuild);
+
+  document.getElementById('sat').addEventListener('change', () => {
+    // Tant que l'utilisateur n'a pas choisi une archive précise,
+    // chaque satellite repart de la date du jour et cherche sa dernière image.
+    if (!userPickedDate) {
+      autoStep = 0;
+      dateInput.value = isoDaysAgo(0);
+      notice.textContent = 'Recherche de la dernière image disponible…';
+      notice.style.display = 'block';
+    }
+    rebuild();
+  });
   document.getElementById('fires').addEventListener('change', loadFirms);
   document.getElementById('aerosol').addEventListener('change', rebuild);
   document.getElementById('op').addEventListener('input', () => {
@@ -1036,9 +1168,18 @@
     e.target.checked ? labelsLayer.addTo(map) : map.removeLayer(labelsLayer);
   });
 
+  const layersPanel = document.querySelector('.layers-panel');
+  if (layersPanel) {
+    layersPanel.addEventListener('toggle', refreshMapSize);
+  }
+
+  notice.textContent = 'Recherche de la dernière image disponible…';
+  notice.style.display = 'block';
+
   rebuild();
   updateFirmsLegend();
   loadFirms();
+  refreshMapSize();
 
   // Actualisation régulière pendant que la page reste ouverte.
   setInterval(() => {
