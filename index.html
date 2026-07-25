@@ -114,7 +114,7 @@
       <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
-    <label class="toggle"><input type="checkbox" id="fires" checked>Foyers (dernières 48 h)</label>
+    <label class="toggle" title="Détections VIIRS actualisées automatiquement"><input type="checkbox" id="fires" checked>Foyers actuels (48 h)</label>
     <label class="toggle"><input type="checkbox" id="communes">Indice ATMO par commune</label>
     <span id="pollutant-wrap" style="display:none"><label for="pollutant">Polluant</label>
     <select id="pollutant">
@@ -255,48 +255,175 @@
     return (Date.now() - when.getTime()) / 3600000;
   }
 
+  let firmsLoading = false;
+  let firmsLastRefresh = 0;
+  const FIRMS_REFRESH_MS = 15 * 60 * 1000;
+
   async function loadFirms() {
-    if (fireLayer) { map.removeLayer(fireLayer); fireLayer = null; }
-    if (!document.getElementById('fires').checked) return;
+    const firesInput = document.getElementById('fires');
+
+    if (!firesInput.checked) {
+      if (fireLayer) {
+        map.removeLayer(fireLayer);
+        fireLayer = null;
+      }
+      return;
+    }
+
+    // Évite deux actualisations simultanées.
+    if (firmsLoading) return;
+    firmsLoading = true;
 
     try {
-      const sources = ['VIIRS_NOAA20_NRT', 'VIIRS_SNPP_NRT'];
+      const sources = [
+        'VIIRS_NOAA20_NRT',
+        'VIIRS_NOAA21_NRT',
+        'VIIRS_SNPP_NRT'
+      ];
+
+      // FIRMS renvoie trois jours calendaires UTC. La fenêtre glissante
+      // exacte de 48 heures est appliquée plus bas dans le navigateur.
+      const results = await Promise.allSettled(
+        sources.map(async source => {
+          const url =
+            OPENAQ_PROXY +
+            '/firms/' +
+            source +
+            '/' +
+            FIRMS_BBOX +
+            '/3';
+
+          const resp = await fetch(url, { cache: 'no-store' });
+
+          if (!resp.ok) {
+            throw new Error(source + ' : HTTP ' + resp.status);
+          }
+
+          console.info(
+            'FIRMS',
+            source,
+            'cache =',
+            resp.headers.get('X-Proxy-Cache') || '?',
+            'NASA interrogée à',
+            resp.headers.get('X-Upstream-Fetched-At') || '?'
+          );
+
+          return parseCsv(await resp.text());
+        })
+      );
+
       const all = [];
-      for (const s of sources) {
-        const url = OPENAQ_PROXY + '/firms/' + s + '/' + FIRMS_BBOX + '/2';
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        all.push(...parseCsv(await resp.text()));
+      const failedSources = [];
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          all.push(...result.value);
+        } else {
+          failedSources.push(sources[index]);
+          console.warn(
+            'FIRMS : source indisponible',
+            sources[index],
+            result.reason
+          );
+        }
+      });
+
+      // Ne pas effacer la dernière couche valide si toutes les sources échouent.
+      if (failedSources.length === sources.length) {
+        throw new Error('Toutes les sources FIRMS ont échoué.');
       }
 
-      fireLayer = L.layerGroup();
+      const nextFireLayer = L.layerGroup();
+      let displayedCount = 0;
+
       all.forEach(row => {
-        const lat = parseFloat(row.latitude), lon = parseFloat(row.longitude);
-        if (isNaN(lat) || isNaN(lon)) return;
+        const lat = parseFloat(row.latitude);
+        const lon = parseFloat(row.longitude);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
         const age = fireAgeHours(row);
+
+        // Vraie fenêtre glissante de 48 heures.
+        if (!Number.isFinite(age) || age < -0.5 || age > 48) return;
+
         const frp = parseFloat(row.frp) || 0;
-        const color = age < 6 ? '#ff2d13' : (age < 24 ? '#ff8c1a' : '#a8712f');
+        const color = age < 6
+          ? '#ff2d13'
+          : age < 24
+            ? '#ff8c1a'
+            : '#a8712f';
+
         L.circleMarker([lat, lon], {
           radius: Math.min(4 + Math.sqrt(frp) / 2, 14),
-          color: '#000', weight: 1, fillColor: color, fillOpacity: 0.85
-        }).bindPopup(
-          '<b>Foyer détecté</b><br>' +
-          row.acq_date + ' ' + (row.acq_time || '').padStart(4, '0').replace(/(..)(..)/, '$1h$2 UTC') +
-          '<br>Satellite : ' + (row.satellite || '?') +
-          '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
-          '<br>Confiance : ' + (row.confidence || '?')
-        ).addTo(fireLayer);
-      });
-      fireLayer.addTo(map);
+          color: '#000',
+          weight: 1,
+          fillColor: color,
+          fillOpacity: 0.85
+        })
+          .bindPopup(
+            '<b>Foyer détecté</b><br>' +
+            row.acq_date +
+            ' ' +
+            (row.acq_time || '')
+              .padStart(4, '0')
+              .replace(/(..)(..)/, '$1h$2 UTC') +
+            '<br>Âge : ' + age.toFixed(1) + ' h' +
+            '<br>Satellite : ' + (row.satellite || '?') +
+            '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
+            '<br>Confiance : ' + (row.confidence || '?')
+          )
+          .addTo(nextFireLayer);
 
-      if (all.length === 0) {
-        notice.textContent = 'Aucun foyer détecté par VIIRS sur la zone ces dernières 48 h.';
+        displayedCount++;
+      });
+
+      // La case peut avoir été décochée pendant le téléchargement.
+      if (!firesInput.checked) return;
+
+      if (fireLayer) {
+        map.removeLayer(fireLayer);
+      }
+
+      fireLayer = nextFireLayer;
+      fireLayer.addTo(map);
+      firmsLastRefresh = Date.now();
+
+      console.info(
+        'FIRMS :',
+        displayedCount,
+        'détections affichées sur les dernières 48 h ;',
+        all.length,
+        'enregistrements bruts reçus ; actualisation',
+        new Date(firmsLastRefresh).toLocaleString('fr-FR')
+      );
+
+      if (failedSources.length) {
+        console.warn(
+          'FIRMS : carte partielle, sources absentes :',
+          failedSources.join(', ')
+        );
+      }
+
+      if (displayedCount === 0) {
+        notice.textContent =
+          'Aucun foyer VIIRS détecté sur la zone durant les dernières 48 h.';
         notice.style.display = 'block';
-        setTimeout(() => { notice.style.display = 'none'; }, 6000);
+        setTimeout(() => {
+          notice.style.display = 'none';
+        }, 6000);
       }
     } catch (err) {
-      notice.textContent = 'Impossible de charger les foyers FIRMS (clé invalide, quota, ou réseau).';
+      console.error('FIRMS :', err);
+      notice.textContent =
+        'Impossible d’actualiser les foyers FIRMS. ' +
+        'La dernière couche valide est conservée.';
       notice.style.display = 'block';
+      setTimeout(() => {
+        notice.style.display = 'none';
+      }, 8000);
+    } finally {
+      firmsLoading = false;
     }
   }
 
@@ -369,6 +496,29 @@
 
   rebuild();
   loadFirms();
+
+  // Actualisation régulière pendant que la page reste ouverte.
+  setInterval(() => {
+    if (
+      !document.hidden &&
+      document.getElementById('fires').checked
+    ) {
+      loadFirms();
+    }
+  }, FIRMS_REFRESH_MS);
+
+  // Actualisation au retour sur un onglet resté en arrière-plan.
+  document.addEventListener('visibilitychange', () => {
+    const elapsed = Date.now() - firmsLastRefresh;
+
+    if (
+      !document.hidden &&
+      document.getElementById('fires').checked &&
+      elapsed > 5 * 60 * 1000
+    ) {
+      loadFirms();
+    }
+  });
 
   // ==== Vent actuel : modèle ECMWF IFS via Open-Meteo (sans clé) ====
   map.createPane('wind');
