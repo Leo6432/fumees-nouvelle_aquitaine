@@ -98,6 +98,67 @@
     height:8px;border-radius:4px;margin:5px 0 3px;
     background:linear-gradient(90deg,#efefef,#f6f34d,#f2a000,#e02a00,#960032);
   }
+
+  .firms-legend{
+    background:rgba(26,33,41,.94);
+    border:1px solid #38424e;
+    border-radius:8px;
+    padding:9px 10px;
+    color:var(--smoke);
+    font-size:.72rem;
+    line-height:1.35;
+    min-width:190px;
+    box-shadow:0 1px 5px rgba(0,0,0,.35);
+  }
+  .firms-legend.is-hidden{display:none}
+  .firms-legend b{color:var(--paper);font-weight:600}
+  .firms-legend .firms-help{
+    display:block;
+    margin:3px 0 7px;
+    max-width:210px;
+  }
+  .firms-legend .firms-all,
+  .firms-legend .firms-bin{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    border:1px solid transparent;
+    border-radius:5px;
+    padding:3px 5px;
+    margin:1px 0;
+    background:transparent;
+    color:var(--paper);
+    font:inherit;
+    text-align:left;
+    cursor:pointer;
+  }
+  .firms-legend .firms-all:hover,
+  .firms-legend .firms-bin:hover{
+    background:rgba(255,255,255,.08);
+  }
+  .firms-legend .firms-all.is-active,
+  .firms-legend .firms-bin.is-active{
+    border-color:var(--paper);
+    background:rgba(255,255,255,.11);
+  }
+  .firms-legend.has-filter .firms-bin:not(.is-active),
+  .firms-legend.has-filter .firms-all:not(.is-active){
+    opacity:.42;
+  }
+  .firms-legend .firms-sw{
+    width:15px;
+    height:15px;
+    flex:0 0 15px;
+    border:1px solid rgba(0,0,0,.75);
+    border-radius:50%;
+  }
+  .firms-legend .firms-label{flex:1}
+  .firms-legend .firms-count{
+    color:var(--smoke);
+    min-width:24px;
+    text-align:right;
+  }
 </style>
 </head>
 <body>
@@ -162,7 +223,7 @@
   <details>
     <summary>Sources &amp; crédits</summary>
     Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu).
-    Foyers : détections thermiques MODIS et VIIRS des dernières 48 h (NASA FIRMS ; rouge = moins de 6 h, orange = moins de 24 h).
+    Foyers : détections thermiques MODIS et VIIRS des dernières 48 h (NASA FIRMS ; couleurs du rouge au jaune clair selon l’âge, par classes de 8 h).
     Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
     Indice ATMO (points) : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL) ; détail par commune sur la <a href="https://www.atmo-nouvelleaquitaine.org/air-commune">carte officielle</a>.
@@ -175,6 +236,20 @@
 <script>
   // ---- Carte centrée sur la Nouvelle-Aquitaine ----
   const map = L.map('map', { zoomControl: true }).setView([44.9, 0.0], 7);
+
+  // Légende FIRMS placée dans la carte, sous les boutons de zoom.
+  const firmsLegendControl = L.control({ position: 'topleft' });
+  let firmsLegendEl = null;
+
+  firmsLegendControl.onAdd = function () {
+    firmsLegendEl = L.DomUtil.create('div', 'firms-legend leaflet-control');
+    firmsLegendEl.id = 'firmslegend';
+    L.DomEvent.disableClickPropagation(firmsLegendEl);
+    L.DomEvent.disableScrollPropagation(firmsLegendEl);
+    return firmsLegendEl;
+  };
+
+  firmsLegendControl.addTo(map);
 
   // Calques dédiés pour dessiner AU-DESSUS de l'image satellite :
   // 'over' pour les superpositions de données, 'toplabels' pour les noms de villes
@@ -226,6 +301,110 @@
   let satLayer = null;
   let fireLayer = null;
   let aiLayer = null;
+
+  // Classes temporelles FIRMS : rouge = très récent, jaune pâle = plus ancien.
+  // Les intervalles sont réguliers : six classes de huit heures sur 48 h.
+  const FIRE_AGE_BINS = [
+    { id: 'h00_08', min: 0,  max: 8,  label: '0–8 h',   color: '#d7191c' },
+    { id: 'h08_16', min: 8,  max: 16, label: '8–16 h',  color: '#f03b20' },
+    { id: 'h16_24', min: 16, max: 24, label: '16–24 h', color: '#fd8d3c' },
+    { id: 'h24_32', min: 24, max: 32, label: '24–32 h', color: '#feb24c' },
+    { id: 'h32_40', min: 32, max: 40, label: '32–40 h', color: '#fed976' },
+    { id: 'h40_48', min: 40, max: 48.001, label: '40–48 h', color: '#fff7bc' }
+  ];
+
+  let fireRecords = [];
+  let activeFireAgeBin = 'all';
+
+  function getFireAgeBin(age) {
+    return FIRE_AGE_BINS.find(bin => age >= bin.min && age < bin.max) || null;
+  }
+
+  function updateFirmsLegend() {
+    if (!firmsLegendEl) return;
+
+    const firesOn = document.getElementById('fires').checked;
+    firmsLegendEl.classList.toggle('is-hidden', !firesOn);
+    firmsLegendEl.classList.toggle('has-filter', activeFireAgeBin !== 'all');
+
+    if (!firesOn) return;
+
+    const counts = Object.fromEntries(FIRE_AGE_BINS.map(bin => [bin.id, 0]));
+    fireRecords.forEach(rec => {
+      if (counts[rec.ageBin] != null) counts[rec.ageBin]++;
+    });
+
+    firmsLegendEl.innerHTML =
+      '<b>Âge des détections FIRMS</b>' +
+      '<small class="firms-help">Rouge : plus récent · jaune clair : plus ancien.<br>' +
+      'Clique sur une couleur pour isoler cette période.</small>' +
+      '<button type="button" class="firms-all ' +
+        (activeFireAgeBin === 'all' ? 'is-active' : '') +
+        '" data-fire-bin="all" aria-pressed="' +
+        (activeFireAgeBin === 'all') + '">' +
+        '<span class="firms-label">Tous les foyers</span>' +
+        '<span class="firms-count">' + fireRecords.length + '</span>' +
+      '</button>' +
+      FIRE_AGE_BINS.map(bin =>
+        '<button type="button" class="firms-bin ' +
+          (activeFireAgeBin === bin.id ? 'is-active' : '') +
+          '" data-fire-bin="' + bin.id + '" aria-pressed="' +
+          (activeFireAgeBin === bin.id) + '">' +
+          '<span class="firms-sw" style="background:' + bin.color + '"></span>' +
+          '<span class="firms-label">' + bin.label + '</span>' +
+          '<span class="firms-count">' + counts[bin.id] + '</span>' +
+        '</button>'
+      ).join('');
+
+    firmsLegendEl.querySelectorAll('[data-fire-bin]').forEach(button => {
+      button.addEventListener('click', () => {
+        const requested = button.dataset.fireBin;
+
+        // Reclique sur la classe active : retour à tous les foyers.
+        activeFireAgeBin =
+          requested === activeFireAgeBin && requested !== 'all'
+            ? 'all'
+            : requested;
+
+        renderFireLayer();
+        updateFirmsLegend();
+      });
+    });
+  }
+
+  function renderFireLayer() {
+    if (fireLayer) {
+      map.removeLayer(fireLayer);
+      fireLayer = null;
+    }
+
+    if (!document.getElementById('fires').checked) {
+      updateFirmsLegend();
+      return 0;
+    }
+
+    fireLayer = L.layerGroup();
+    let visibleCount = 0;
+
+    fireRecords.forEach(rec => {
+      if (activeFireAgeBin !== 'all' && rec.ageBin !== activeFireAgeBin) return;
+
+      L.circleMarker([rec.lat, rec.lon], {
+        radius: Math.min(4 + Math.sqrt(rec.frp) / 2, 14),
+        color: '#101418',
+        weight: 1.2,
+        fillColor: rec.color,
+        fillOpacity: 0.9
+      })
+        .bindPopup(rec.popup)
+        .addTo(fireLayer);
+
+      visibleCount++;
+    });
+
+    fireLayer.addTo(map);
+    return visibleCount;
+  }
 
   // Proxy Cloudflare Worker : détient les clés OpenAQ et FIRMS (secrets),
   // le site ne contient aucune clé. Slash final retiré automatiquement.
@@ -286,6 +465,7 @@
         map.removeLayer(fireLayer);
         fireLayer = null;
       }
+      updateFirmsLegend();
       return;
     }
 
@@ -370,8 +550,7 @@
         throw new Error('Toutes les sources FIRMS ont échoué.');
       }
 
-      const nextFireLayer = L.layerGroup();
-      let displayedCount = 0;
+      const nextFireRecords = [];
 
       all.forEach(row => {
         const lat = parseFloat(row.latitude);
@@ -385,47 +564,42 @@
         if (!Number.isFinite(age) || age < -0.5 || age > 48) return;
 
         const frp = parseFloat(row.frp) || 0;
-        const color = age < 6
-          ? '#ff2d13'
-          : age < 24
-            ? '#ff8c1a'
-            : '#a8712f';
+        const ageBin = getFireAgeBin(age);
+        if (!ageBin) return;
 
-        L.circleMarker([lat, lon], {
-          radius: Math.min(4 + Math.sqrt(frp) / 2, 14),
-          color: '#000',
-          weight: 1,
-          fillColor: color,
-          fillOpacity: 0.85
-        })
-          .bindPopup(
-            '<b>Foyer détecté</b><br>' +
-            row.acq_date +
-            ' ' +
-            (row.acq_time || '')
-              .padStart(4, '0')
-              .replace(/(..)(..)/, '$1h$2 UTC') +
-            '<br>Âge : ' + age.toFixed(1) + ' h' +
-            '<br>Satellite : ' + (row.satellite || '?') +
-            '<br>Instrument : ' + (row.instrument || '?') +
-            '<br>Flux FIRMS : ' + (row._firmsSource || '?') +
-            '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
-            '<br>Confiance : ' + formatFireConfidence(row)
-          )
-          .addTo(nextFireLayer);
+        const popup =
+          '<b>Foyer détecté</b><br>' +
+          row.acq_date +
+          ' ' +
+          (row.acq_time || '')
+            .padStart(4, '0')
+            .replace(/(..)(..)/, '$1h$2 UTC') +
+          '<br>Âge : ' + age.toFixed(1) + ' h' +
+          '<br>Classe temporelle : ' + ageBin.label +
+          '<br>Satellite : ' + (row.satellite || '?') +
+          '<br>Instrument : ' + (row.instrument || '?') +
+          '<br>Flux FIRMS : ' + (row._firmsSource || '?') +
+          '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
+          '<br>Confiance : ' + formatFireConfidence(row);
 
-        displayedCount++;
+        nextFireRecords.push({
+          lat,
+          lon,
+          age,
+          ageBin: ageBin.id,
+          color: ageBin.color,
+          frp,
+          popup
+        });
+
       });
 
       // La case peut avoir été décochée pendant le téléchargement.
       if (!firesInput.checked) return;
 
-      if (fireLayer) {
-        map.removeLayer(fireLayer);
-      }
-
-      fireLayer = nextFireLayer;
-      fireLayer.addTo(map);
+      fireRecords = nextFireRecords;
+      const displayedCount = renderFireLayer();
+      updateFirmsLegend();
       firmsLastRefresh = Date.now();
 
       console.info(
@@ -444,7 +618,7 @@
         );
       }
 
-      if (displayedCount === 0) {
+      if (fireRecords.length === 0) {
         notice.textContent =
           'Aucun foyer MODIS ou VIIRS détecté sur la zone durant les dernières 48 h.';
         notice.style.display = 'block';
@@ -534,6 +708,7 @@
   });
 
   rebuild();
+  updateFirmsLegend();
   loadFirms();
 
   // Actualisation régulière pendant que la page reste ouverte.
