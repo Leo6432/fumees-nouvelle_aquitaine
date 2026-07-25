@@ -352,6 +352,12 @@
           <input type="checkbox" id="progression">Progression du feu (vecteurs)
         </label>
 
+        <span id="timeslider-wrap" style="display:none;white-space:nowrap">
+          <label for="timeslider">Remonter le temps</label>
+          <input type="range" id="timeslider" min="0" max="48" value="48" step="1" style="vertical-align:middle;width:150px;accent-color:var(--ember)">
+          <span id="timeslider-label" style="font-variant-numeric:tabular-nums"></span>
+        </span>
+
         <label class="toggle">
           <input type="checkbox" id="communes">Indice ATMO par commune
         </label>
@@ -730,6 +736,7 @@
 
     fireRecords.forEach(rec => {
       if (activeFireAgeBin !== 'all' && rec.ageBin !== activeFireAgeBin) return;
+      if (rec.age < timeCutoffHoursAgo()) return; // curseur temporel : ne montrer que jusqu'à la borne
 
       L.circleMarker([rec.lat, rec.lon], {
         pane: 'firepoints',
@@ -1175,6 +1182,14 @@
   let progressionLayer = null;
   const PROG_BIN_HOURS = 6;
 
+  // Curseur temporel : valeur 0..48 (48 = maintenant). On ne montre que les
+  // foyers plus VIEUX que cette borne (age >= cutoff), pour "remonter le temps".
+  let timeSliderValue = 48; // maintenant par défaut
+  function timeCutoffHoursAgo() {
+    // valeur 48 -> cutoff 0 (tout) ; valeur 0 -> cutoff 48 (rien de récent)
+    return 48 - timeSliderValue;
+  }
+
   function bearingToCardinal(deg) {
     const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
                   'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'];
@@ -1258,8 +1273,13 @@
     if (!document.getElementById('progression').checked) return;
     if (!fireRecords || fireRecords.length < 3) return;
 
+    // Appliquer la borne temporelle du curseur
+    const cutoff = timeCutoffHoursAgo();
+    const visible = fireRecords.filter(r => Number.isFinite(r.age) && r.age >= cutoff);
+    if (visible.length < 3) return;
+
     // 1) Séparer les incendies distincts
-    const clusters = clusterFires(fireRecords)
+    const clusters = clusterFires(visible)
       .filter(c => c.length >= 4); // ignorer le bruit isolé
 
     progressionLayer = L.layerGroup();
@@ -1314,12 +1334,31 @@
   }
 
   document.getElementById('progression').addEventListener('change', () => {
-    if (document.getElementById('progression').checked && (!fireRecords || !fireRecords.length)) {
-      // Les vecteurs ont besoin des foyers : on les charge si absents.
+    const on = document.getElementById('progression').checked;
+    document.getElementById('timeslider-wrap').style.display = on ? '' : 'none';
+    if (on && (!fireRecords || !fireRecords.length)) {
       const firesBox = document.getElementById('fires');
-      if (!firesBox.checked) { firesBox.checked = true; loadFirms().then(renderProgression); return; }
+      if (!firesBox.checked) { firesBox.checked = true; loadFirms().then(() => { updateTimeLabel(); renderProgression(); }); return; }
     }
+    updateTimeLabel();
     renderProgression();
+  });
+
+  function updateTimeLabel() {
+    const lbl = document.getElementById('timeslider-label');
+    if (!lbl) return;
+    if (timeSliderValue >= 48) { lbl.textContent = 'maintenant'; return; }
+    const hoursBack = 48 - timeSliderValue;
+    const when = new Date(Date.now() - hoursBack * 3600 * 1000);
+    lbl.textContent = 'il y a ' + hoursBack + ' h (' +
+      when.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) + ')';
+  }
+
+  document.getElementById('timeslider').addEventListener('input', (e) => {
+    timeSliderValue = +e.target.value;
+    updateTimeLabel();
+    renderFireLayer();     // les foyers suivent aussi le curseur
+    renderProgression();   // les vecteurs aussi
   });
 
   document.getElementById('fires').addEventListener('change', loadFirms);
