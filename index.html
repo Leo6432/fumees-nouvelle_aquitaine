@@ -174,11 +174,107 @@
   }
   #isochrones-legend{
     position:absolute;left:12px;bottom:26px;z-index:1001;display:none;
-    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
-    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
+    width:min(260px,calc(100vw - 24px));
+    background:rgba(26,33,41,.94);border:1px solid #38424e;border-radius:8px;
+    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.45;
+    transition:bottom .15s ease;
   }
   #isochrones-legend b{color:var(--paper);font-weight:600}
-  #isochrones-legend .iso-sw{display:inline-block;width:18px;height:4px;border-radius:2px;margin-right:6px;vertical-align:3px}
+  #isochrones-legend .iso-grad{
+    height:10px;border-radius:5px;margin:6px 0 3px;
+    background:linear-gradient(90deg,#ffe82e 0%,#ffad26 35%,#ff641f 68%,#d7191c 100%);
+  }
+  #isochrones-legend .iso-scale{
+    display:flex;justify-content:space-between;gap:8px;
+    font-variant-numeric:tabular-nums;
+  }
+  #isochrones-legend .iso-note{display:block;margin-top:5px}
+
+  .arrival-search{
+    position:relative;
+    flex:1 1 440px;
+    max-width:620px;
+    min-width:min(100%,320px);
+    padding:8px 10px;
+    border:1px solid #38424e;
+    border-radius:8px;
+    background:rgba(16,20,24,.42);
+  }
+  .arrival-search-title{
+    display:block;
+    color:var(--paper);
+    font-weight:600;
+    margin-bottom:5px;
+  }
+  .arrival-search-row{
+    display:flex;
+    gap:6px;
+  }
+  .arrival-search input[type="search"]{
+    flex:1;
+    min-width:0;
+    background:var(--panel-2);
+    color:var(--paper);
+    border:1px solid #46515e;
+    border-radius:6px;
+    padding:7px 9px;
+    font:inherit;
+  }
+  .arrival-search button{
+    border:1px solid #7c3320;
+    border-radius:6px;
+    background:var(--ember);
+    color:#fff;
+    padding:7px 10px;
+    font:inherit;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .arrival-search button:disabled{opacity:.55;cursor:wait}
+  .arrival-search-help{
+    display:block;
+    margin-top:5px;
+    color:var(--smoke);
+  }
+  .address-suggestions{
+    position:absolute;
+    left:10px;
+    right:10px;
+    top:70px;
+    z-index:2200;
+    display:none;
+    max-height:230px;
+    overflow:auto;
+    background:var(--panel);
+    border:1px solid #46515e;
+    border-radius:7px;
+    box-shadow:0 8px 22px rgba(0,0,0,.45);
+  }
+  .address-suggestions button{
+    display:block;
+    width:100%;
+    border:0;
+    border-bottom:1px solid #303945;
+    border-radius:0;
+    background:transparent;
+    color:var(--paper);
+    padding:8px 10px;
+    text-align:left;
+    font-weight:400;
+  }
+  .address-suggestions button:last-child{border-bottom:0}
+  .address-suggestions button:hover,
+  .address-suggestions button:focus{background:var(--panel-2)}
+  .arrival-result{
+    display:none;
+    margin-top:7px;
+    padding:7px 9px;
+    border-left:3px solid var(--ember);
+    background:rgba(255,107,53,.08);
+    color:var(--paper);
+    line-height:1.45;
+  }
+  .arrival-result small{color:var(--smoke)}
 
   .firms-legend{
     background:rgba(26,33,41,.94);
@@ -338,11 +434,11 @@
       <span>
         <label for="sat">Satellite</label>
         <select id="sat">
-          <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor">VIIRS NOAA-20 (~13h30)</option>
-          <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS Suomi-NPP (~13h30)</option>
-          <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
-          <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
-          <option value="S3_OLCI_TRUECOLOR">Sentinel-3 OLCI (3A + 3B, ~300 m)</option>
+          <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor">VIIRS NOAA-20</option>
+          <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS Suomi-NPP</option>
+          <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra</option>
+          <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua</option>
+          <option value="S3_OLCI_TRUECOLOR">Sentinel-3 OLCI (3A + 3B, 300 m)</option>
         </select>
       </span>
     </div>
@@ -354,16 +450,6 @@
         <label class="toggle" title="Détections thermiques MODIS et VIIRS, actualisées automatiquement">
           <input type="checkbox" id="fires">Foyers actuels (48 h)
         </label>
-
-        <label class="toggle" title="Flèches de déplacement du cœur du feu, calculées à partir des foyers par tranches de 6 h">
-          <input type="checkbox" id="progression">Progression du feu (vecteurs)
-        </label>
-
-        <span id="timeslider-wrap" style="display:none;white-space:nowrap">
-          <label for="timeslider">Remonter le temps</label>
-          <input type="range" id="timeslider" min="0" max="48" value="48" step="1" style="vertical-align:middle;width:150px;accent-color:var(--ember)">
-          <span id="timeslider-label" style="font-variant-numeric:tabular-nums"></span>
-        </span>
 
         <label class="toggle">
           <input type="checkbox" id="communes">Indice ATMO par commune
@@ -389,13 +475,30 @@
           <input type="checkbox" id="wind">Vent actuel (ECMWF)
         </label>
 
-        <label class="toggle">
+        <label class="toggle" title="Périmètres stabilisés EFFIS (couche modis.ba), sur les 7 jours précédant la date choisie">
           <input type="checkbox" id="burnt">Surfaces brûlées (EFFIS)
         </label>
 
-        <label class="toggle" title="Reconstruction de la progression du feu par krigeage des détections FIRMS (calcul hors-ligne)">
-          <input type="checkbox" id="isochrones">Carte de propagation (isochrones)
-        </label>
+        <label class="toggle"
+            title="Emprises cumulées des détections actives FIRMS observées lors des passages satellitaires">
+            <input type="checkbox" id="isochrones">Emprises détectées (FIRMS)
+          </label>
+
+        <div class="arrival-search" id="arrival-search">
+          <label class="arrival-search-title" for="address-input">
+            Situer une adresse par rapport aux emprises détectées
+          </label>
+          <div class="arrival-search-row">
+            <input type="search" id="address-input" autocomplete="off"
+              placeholder="Adresse proche du feu">
+            <button type="button" id="address-search-button">Rechercher</button>
+          </div>
+          <small class="arrival-search-help" id="arrival-search-help">
+            Distance à la limite de la dernière emprise cumulative détectée pour chaque incendie.
+          </small>
+          <div class="address-suggestions" id="address-suggestions" role="listbox"></div>
+          <div class="arrival-result" id="arrival-result" aria-live="polite"></div>
+        </div>
 
         <label class="toggle">
           <input type="checkbox" id="aerosol">Aérosols OMPS (AI)
@@ -449,8 +552,9 @@
     Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
     Indice ATMO (points) : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL) ; détail par commune sur la <a href="https://www.atmo-nouvelleaquitaine.org/air-commune">carte officielle</a>.
-    Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS (périmètres en zoomant ; feux d'environ 30 ha et plus).
-    Carte de propagation (isochrones) : reconstruction par krigeage des détections FIRMS — estimation hors-ligne, non temps réel, pas un front observé.
+    Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS — périmètres stabilisés de la couche <code>modis.ba</code>, fenêtre de 7 jours se terminant à la date choisie.
+    Emprises détectées : union cumulative des empreintes de pixels de feu actif FIRMS de confiance nominale ou élevée, regroupées par passage satellitaire. Ce produit n’est ni un périmètre brûlé, ni un front de feu continu, ni une interpolation du temps d’arrivée.
+    Recherche d’adresse : service de géocodage de la Géoplateforme IGN, données de la Base Adresse Nationale ; comparaison avec la dernière emprise cumulative détectée de chacun des deux incendies, sans estimation du passage du feu à l’adresse.
     Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Limites de communes : IGN Admin Express COG 2026 (Licence ouverte).
   </details>
 </footer>
@@ -549,6 +653,8 @@
   map.createPane('toplabels');
   map.getPane('toplabels').style.zIndex = 650;
   map.getPane('toplabels').style.pointerEvents = 'none';
+  map.createPane('firepoints');
+  map.getPane('firepoints').style.zIndex = 660;
 
   // Fond OSM (visible quand l'opacité satellite est réduite)
   const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -586,6 +692,204 @@
   let userPickedDate = false;
   let satelliteBuildSerial = 0;
 
+  // Couches NASA comparées automatiquement au chargement.
+  // En cas d'égalité de date, priorité à VIIRS, puis MODIS.
+  const HOME_GIBS_LAYERS = [
+    {
+      id: 'VIIRS_NOAA20_CorrectedReflectance_TrueColor',
+      priority: 0
+    },
+    {
+      id: 'VIIRS_SNPP_CorrectedReflectance_TrueColor',
+      priority: 1
+    },
+    {
+      id: 'MODIS_Aqua_CorrectedReflectance_TrueColor',
+      priority: 2
+    },
+    {
+      id: 'MODIS_Terra_CorrectedReflectance_TrueColor',
+      priority: 3
+    }
+  ];
+
+  let gibsLatestDates = new Map();
+
+  function directChildByLocalName(parent, localName) {
+    return Array.from(parent && parent.children || [])
+      .find(node => node.localName === localName) || null;
+  }
+
+  async function fetchGibsLatestDates() {
+    const capabilitiesUrl =
+      GIBS + '/1.0.0/WMTSCapabilities.xml';
+
+    const response = await fetch(
+      capabilitiesUrl,
+      {
+        cache: 'no-store'
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        'Catalogue GIBS indisponible : HTTP ' +
+        response.status
+      );
+    }
+
+    const xmlText = await response.text();
+
+    const xml = new DOMParser().parseFromString(
+      xmlText,
+      'application/xml'
+    );
+
+    if (xml.querySelector('parsererror')) {
+      throw new Error('Catalogue GIBS XML invalide.');
+    }
+
+    const wantedLayers = new Set(
+      HOME_GIBS_LAYERS.map(layer => layer.id)
+    );
+
+    const dates = new Map();
+
+    const layers = Array.from(
+      xml.getElementsByTagNameNS('*', 'Layer')
+    );
+
+    layers.forEach(layerNode => {
+      const identifierNode =
+        directChildByLocalName(
+          layerNode,
+          'Identifier'
+        );
+
+      const layerId =
+        identifierNode
+          ? identifierNode.textContent.trim()
+          : '';
+
+      if (!wantedLayers.has(layerId)) return;
+
+      const dimensions = Array.from(
+        layerNode.children || []
+      ).filter(node => node.localName === 'Dimension');
+
+      const timeDimension = dimensions.find(dimension => {
+        const identifier =
+          directChildByLocalName(
+            dimension,
+            'Identifier'
+          );
+
+        return identifier &&
+          identifier.textContent
+            .trim()
+            .toLowerCase() === 'time';
+      });
+
+      if (!timeDimension) return;
+
+      const defaultNode =
+        directChildByLocalName(
+          timeDimension,
+          'Default'
+        );
+
+      const date = defaultNode
+        ? defaultNode.textContent.trim().slice(0, 10)
+        : '';
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        dates.set(layerId, date);
+      }
+    });
+
+    return dates;
+  }
+
+  async function selectLatestAvailableGibsImage() {
+    gibsLatestDates =
+      await fetchGibsLatestDates();
+
+    const candidates = HOME_GIBS_LAYERS
+      .map(layer => ({
+        ...layer,
+        date: gibsLatestDates.get(layer.id)
+      }))
+      .filter(layer => layer.date);
+
+    if (!candidates.length) {
+      throw new Error(
+        'Aucune date récente trouvée dans GIBS.'
+      );
+    }
+
+    candidates.sort((a, b) => {
+      const dateOrder =
+        b.date.localeCompare(a.date);
+
+      return dateOrder !== 0
+        ? dateOrder
+        : a.priority - b.priority;
+    });
+
+    const latest = candidates[0];
+
+    const satSelect =
+      document.getElementById('sat');
+
+    satSelect.value = latest.id;
+    dateInput.value = latest.date;
+    autoStep = 0;
+
+    console.info(
+      'Accueil : dernière image NASA sélectionnée',
+      latest.id,
+      latest.date
+    );
+
+    return latest;
+  }
+
+  async function initializeSatelliteHomepage() {
+    notice.textContent =
+      'Recherche de la dernière image satellite disponible…';
+
+    notice.style.display = 'block';
+
+    try {
+      const latest =
+        await selectLatestAvailableGibsImage();
+
+      const satSelect =
+        document.getElementById('sat');
+
+      notice.textContent =
+        'Dernière image détectée : ' +
+        satSelect.options[satSelect.selectedIndex].text +
+        ' — ' +
+        formatDateFr(latest.date) +
+        '.';
+
+    } catch (error) {
+      console.warn(
+        'Détection automatique GIBS :',
+        error
+      );
+
+      // Secours : comportement précédent.
+      dateInput.value = isoDaysAgo(0);
+
+      notice.textContent =
+        'Catalogue GIBS indisponible : recherche par recul automatique…';
+    }
+
+    rebuild();
+  }
+
   function tryPreviousSatelliteDate(buildId) {
     if (
       buildId !== satelliteBuildSerial ||
@@ -596,7 +900,18 @@
     }
 
     autoStep++;
-    dateInput.value = isoDaysAgo(autoStep);
+
+    const previousDate = new Date(
+      (dateInput.value || isoDaysAgo(0)) +
+      'T12:00:00Z'
+    );
+
+    previousDate.setUTCDate(
+      previousDate.getUTCDate() - 1
+    );
+
+    dateInput.value =
+      previousDate.toISOString().slice(0, 10);
 
     notice.textContent =
       'Recherche de la dernière image disponible… ' +
@@ -749,8 +1064,6 @@
 
     fireRecords.forEach(rec => {
       if (activeFireAgeBin !== 'all' && rec.ageBin !== activeFireAgeBin) return;
-      if (rec.age < timeCutoffHoursAgo()) return; // curseur temporel : ne montrer que jusqu'à la borne
-
       L.circleMarker([rec.lat, rec.lon], {
         pane: 'firepoints',
         radius: Math.min(4 + Math.sqrt(rec.frp) / 2, 14),
@@ -962,7 +1275,6 @@
 
       fireRecords = nextFireRecords;
       const displayedCount = renderFireLayer();
-      renderProgression();
       updateFirmsLegend();
       firmsLastRefresh = Date.now();
 
@@ -1143,6 +1455,7 @@
     // L'indice OMPS reste indépendant du fond satellite choisi.
     const aerosolOn = document.getElementById('aerosol').checked;
     aerosolLegend.style.display = aerosolOn ? '' : 'none';
+    updateMapLegendLayout();
 
     if (aerosolOn) {
       aiLayer = L.tileLayer(
@@ -1166,7 +1479,7 @@
     autoStep = 0;
     rebuild();
     refreshAtmoForSelectedDate();
-    if (document.getElementById('burnt').checked) updateBurntForZoom();
+    if (document.getElementById('burnt').checked) loadBurntLayer();
   });
 
   document.getElementById('sat').addEventListener('change', () => {
@@ -1174,206 +1487,26 @@
     // chaque satellite repart de la date du jour et cherche sa dernière image.
     if (!userPickedDate) {
       autoStep = 0;
-      dateInput.value = isoDaysAgo(0);
-      notice.textContent = 'Recherche de la dernière image disponible…';
+
+      const selectedSat =
+        document.getElementById('sat').value;
+
+      const latestDate =
+        gibsLatestDates.get(selectedSat);
+
+      dateInput.value =
+        latestDate || isoDaysAgo(0);
+
+      notice.textContent =
+        latestDate
+          ? 'Chargement de la dernière image disponible : ' +
+            formatDateFr(latestDate) + '…'
+          : 'Recherche de la dernière image disponible…';
+
       notice.style.display = 'block';
     }
     rebuild();
   });
-  // ==== Progression du feu : vecteurs de déplacement du cœur thermique ====
-  // Découpe les foyers des dernières 48 h en tranches de 6 h, calcule pour
-  // chaque tranche le barycentre pondéré par la puissance radiative (FRP),
-  // puis relie les barycentres successifs par des flèches (direction + vitesse).
-  // Lecture prudente : c'est une tendance du centre de gravité thermique,
-  // pas une ligne de front topographique.
-  map.createPane('vectors');
-  map.getPane('vectors').style.zIndex = 640;
-  map.getPane('vectors').style.pointerEvents = 'none';
-  map.createPane('firepoints');
-  map.getPane('firepoints').style.zIndex = 660;
-
-  let progressionLayer = null;
-  const PROG_BIN_HOURS = 6;
-
-  // Curseur temporel : valeur 0..48 (48 = maintenant). On ne montre que les
-  // foyers plus VIEUX que cette borne (age >= cutoff), pour "remonter le temps".
-  let timeSliderValue = 48; // maintenant par défaut
-  function timeCutoffHoursAgo() {
-    // valeur 48 -> cutoff 0 (tout) ; valeur 0 -> cutoff 48 (rien de récent)
-    return 48 - timeSliderValue;
-  }
-
-  function bearingToCardinal(deg) {
-    const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-                  'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'];
-    return dirs[Math.round(deg / 22.5) % 16];
-  }
-
-  // Azimut (0=Nord, 90=Est) et distance en km entre deux points géographiques
-  function bearingDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371, rad = Math.PI / 180;
-    const dLat = (lat2 - lat1) * rad;
-    const dLon = (lon2 - lon1) * rad;
-    const y = Math.sin(dLon) * Math.cos(lat2 * rad);
-    const x = Math.cos(lat1 * rad) * Math.sin(lat2 * rad) -
-              Math.sin(lat1 * rad) * Math.cos(lat2 * rad) * Math.cos(dLon);
-    let brng = Math.atan2(y, x) / rad;
-    if (brng < 0) brng += 360;
-    const mLat = (lat1 + lat2) / 2 * rad;
-    const dx = dLon * Math.cos(mLat) * R;
-    const dy = dLat * R;
-    return { bearing: brng, dist: Math.sqrt(dx * dx + dy * dy) };
-  }
-
-  function clearProgression() {
-    if (progressionLayer) { map.removeLayer(progressionLayer); progressionLayer = null; }
-  }
-
-  // Clustering spatial simple (union-find par proximité) : regroupe les foyers
-  // qui appartiennent au même incendie, pour ne PAS relier deux feux distincts.
-  const CLUSTER_RADIUS_KM = 10;
-
-  function clusterFires(records) {
-    const n = records.length;
-    const parent = Array.from({ length: n }, (_, i) => i);
-    const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
-    const union = (a, b) => { parent[find(a)] = find(b); };
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const d = bearingDistance(records[i].lat, records[i].lon, records[j].lat, records[j].lon).dist;
-        if (d <= CLUSTER_RADIUS_KM) union(i, j);
-      }
-    }
-    const groups = {};
-    for (let i = 0; i < n; i++) (groups[find(i)] = groups[find(i)] || []).push(records[i]);
-    return Object.values(groups);
-  }
-
-  // Barycentre pondéré FRP, par tranche de temps, à l'intérieur d'un cluster
-  function clusterCenters(pts) {
-    const bins = {};
-    pts.forEach(r => {
-      if (!Number.isFinite(r.age)) return;
-      const b = Math.floor(r.age / PROG_BIN_HOURS);
-      (bins[b] = bins[b] || []).push(r);
-    });
-    return Object.keys(bins).map(Number)
-      .sort((a, b) => b - a) // âge décroissant → chronologique
-      .map(b => {
-        const arr = bins[b];
-        let sw = 0, slat = 0, slon = 0;
-        arr.forEach(p => { const w = Math.max(p.frp, 1); sw += w; slat += p.lat * w; slon += p.lon * w; });
-        return { lat: slat / sw, lon: slon / sw, n: arr.length, hoursAgoMid: (b + 0.5) * PROG_BIN_HOURS };
-      })
-      .filter(c => c.n >= 2);
-  }
-
-  function arrowSegments(a, b, col, layer) {
-    const bd = bearingDistance(a.lat, a.lon, b.lat, b.lon);
-    L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { pane: 'vectors', color: col, weight: 3, opacity: 0.9 }).addTo(layer);
-    const headLen = Math.min(bd.dist * 0.3, 1.2);
-    [-25, 25].forEach(off => {
-      const ang = (bd.bearing + 180 + off) * Math.PI / 180, R = 6371;
-      const dLat = (headLen / R) * Math.cos(ang) * 180 / Math.PI;
-      const dLon = (headLen / R) * Math.sin(ang) * 180 / Math.PI / Math.cos(b.lat * Math.PI / 180);
-      L.polyline([[b.lat, b.lon], [b.lat + dLat, b.lon + dLon]], { pane: 'vectors', color: col, weight: 3, opacity: 0.9 }).addTo(layer);
-    });
-    return bd;
-  }
-
-  function renderProgression() {
-    clearProgression();
-    if (!document.getElementById('progression').checked) return;
-    if (!fireRecords || fireRecords.length < 3) return;
-
-    // Appliquer la borne temporelle du curseur
-    const cutoff = timeCutoffHoursAgo();
-    const visible = fireRecords.filter(r => Number.isFinite(r.age) && r.age >= cutoff);
-    if (visible.length < 3) return;
-
-    // 1) Séparer les incendies distincts
-    const clusters = clusterFires(visible)
-      .filter(c => c.length >= 4); // ignorer le bruit isolé
-
-    progressionLayer = L.layerGroup();
-    let drawn = 0;
-
-    // 2) Pour chaque incendie, tracer sa propre progression dans le temps
-    clusters.forEach(cluster => {
-      const centers = clusterCenters(cluster);
-      if (centers.length < 2) return;
-
-      for (let i = 1; i < centers.length; i++) {
-        const a = centers[i - 1], b = centers[i];
-        const dtH = Math.max(a.hoursAgoMid - b.hoursAgoMid, 0.1);
-        const t = i / (centers.length - 1);
-        const col = 'rgba(255,' + Math.round(150 - t * 130) + ',30,0.92)';
-        const bd = arrowSegments(a, b, col, progressionLayer);
-        const speed = bd.dist / dtH;
-
-        // Étiquette seulement si le déplacement est significatif (> 0.5 km),
-        // sinon on n'encombre pas avec du bruit sub-kilométrique.
-        if (bd.dist >= 0.5) {
-          L.marker([(a.lat + b.lat) / 2, (a.lon + b.lon) / 2], {
-            pane: 'vectors', interactive: true,
-            icon: L.divIcon({
-              className: '',
-              html: '<div style="white-space:nowrap;font-size:11px;color:#fff;' +
-                'text-shadow:0 0 3px #000,0 0 3px #000;font-weight:600">' +
-                bearingToCardinal(bd.bearing) + ' · ' + speed.toFixed(1) + ' km/h</div>',
-              iconSize: [0, 0], iconAnchor: [-6, 6]
-            })
-          }).bindPopup(
-            '<b>Progression d\'un foyer</b><br>' +
-            'Direction : ' + bearingToCardinal(bd.bearing) + ' (' + Math.round(bd.bearing) + '° / Nord)<br>' +
-            'Vitesse : ' + speed.toFixed(1) + ' km/h<br>' +
-            'Déplacement : ' + bd.dist.toFixed(1) + ' km en ' + dtH.toFixed(0) + ' h<br>' +
-            '<small>Barycentre thermique (pondéré FRP) d\'un même foyer, tranches de ' + PROG_BIN_HOURS + ' h.</small>'
-          ).addTo(progressionLayer);
-        }
-        drawn++;
-      }
-    });
-
-    if (drawn === 0) {
-      clearProgression();
-      notice.textContent = 'Progression : pas encore assez de foyers répartis dans le temps sur un même incendie.';
-      notice.style.display = 'block';
-      setTimeout(() => { notice.style.display = 'none'; }, 6000);
-      return;
-    }
-
-    progressionLayer.addTo(map);
-  }
-
-  document.getElementById('progression').addEventListener('change', () => {
-    const on = document.getElementById('progression').checked;
-    document.getElementById('timeslider-wrap').style.display = on ? '' : 'none';
-    if (on && (!fireRecords || !fireRecords.length)) {
-      const firesBox = document.getElementById('fires');
-      if (!firesBox.checked) { firesBox.checked = true; loadFirms().then(() => { updateTimeLabel(); renderProgression(); }); return; }
-    }
-    updateTimeLabel();
-    renderProgression();
-  });
-
-  function updateTimeLabel() {
-    const lbl = document.getElementById('timeslider-label');
-    if (!lbl) return;
-    if (timeSliderValue >= 48) { lbl.textContent = 'maintenant'; return; }
-    const hoursBack = 48 - timeSliderValue;
-    const when = new Date(Date.now() - hoursBack * 3600 * 1000);
-    lbl.textContent = 'il y a ' + hoursBack + ' h (' +
-      when.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) + ')';
-  }
-
-  document.getElementById('timeslider').addEventListener('input', (e) => {
-    timeSliderValue = +e.target.value;
-    updateTimeLabel();
-    renderFireLayer();     // les foyers suivent aussi le curseur
-    renderProgression();   // les vecteurs aussi
-  });
-
   document.getElementById('fires').addEventListener('change', loadFirms);
   document.getElementById('aerosol').addEventListener('change', rebuild);
   document.getElementById('op').addEventListener('input', () => {
@@ -1393,10 +1526,12 @@
     layersPanel.addEventListener('toggle', refreshMapSize);
   }
 
-  notice.textContent = 'Recherche de la dernière image disponible…';
+  notice.textContent =
+  'Recherche de la dernière image satellite disponible…';
+
   notice.style.display = 'block';
 
-  rebuild();
+  initializeSatelliteHomepage();
   updateFirmsLegend();
   loadFirms();
   refreshMapSize();
@@ -1775,129 +1910,392 @@
   document.getElementById('atmo').addEventListener('change', toggleAtmo);
 
   // ==== Surfaces brûlées : EFFIS (Copernicus EMS / JRC) ====
-  // À l'échelle régionale, on charge uniquement les points. Les polygones
-  // détaillés ne sont demandés qu'à partir du zoom 9, ce qui évite les requêtes
-  // WMS très lourdes sur toute la France.
-  let burntPointLayer = null;
-  let burntPolyLayer = null;
+  // Produit stabilisé : couche modis.ba sur le service EFFIS.
+  // La carte affiche les périmètres des 7 jours précédant la date choisie.
+  // Il n'existe pas de variantes ".point" ou ".poly" pour cette couche.
+  let burntLayer = null;
 
   const EFFIS_BOUNDS = L.latLngBounds([[42.4, -2.2], [47.4, 2.9]]);
+  const EFFIS_WMS = 'https://maps.effis.emergency.copernicus.eu/effis';
 
-  function clearBurntLayers() {
-    if (burntPointLayer) { map.removeLayer(burntPointLayer); burntPointLayer = null; }
-    if (burntPolyLayer) { map.removeLayer(burntPolyLayer); burntPolyLayer = null; }
+  function shiftIsoDate(isoDate, days) {
+    const d = new Date(isoDate + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
   }
 
-  function effisOptions(layerName) {
+  function clearBurntLayer() {
+    if (burntLayer) {
+      map.removeLayer(burntLayer);
+      burntLayer = null;
+    }
+  }
+
+  function loadBurntLayer() {
+    clearBurntLayer();
+    if (!document.getElementById('burnt').checked) return;
+
     const selected = dateInput.value || isoDaysAgo(0);
-    const year = selected.slice(0, 4);
-    return {
-      layers: layerName,
+    const start = shiftIsoDate(selected, -7);
+
+    burntLayer = L.tileLayer.wms(EFFIS_WMS, {
+      layers: 'modis.ba',
+      styles: '',
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
-      opacity: 0.85,
+      opacity: 0.82,
       pane: 'over',
       updateWhenIdle: true,
       updateWhenZooming: false,
-      keepBuffer: 1,
+      tileSize: 512,
+      keepBuffer: 0,
+      noWrap: true,
       bounds: EFFIS_BOUNDS,
-      TIME: year + '-01-01/' + selected,
+      TIME: start + '/' + selected,
       attribution: 'EFFIS © UE, Copernicus EMS'
-    };
-  }
+    }).addTo(map);
 
-  function updateBurntForZoom() {
-    clearBurntLayers();
-    if (!document.getElementById('burnt').checked) return;
-
-    if (map.getZoom() < 9) {
-      burntPointLayer = L.tileLayer.wms(
-        'https://maps.effis.emergency.copernicus.eu/effis',
-        effisOptions('effis.nrt.ba.point')
-      ).addTo(map);
-    } else {
-      burntPolyLayer = L.tileLayer.wms(
-        'https://maps.effis.emergency.copernicus.eu/effis',
-        effisOptions('effis.nrt.ba.poly')
-      ).addTo(map);
-    }
-  }
-
-  function toggleBurnt() {
-    if (!document.getElementById('burnt').checked) {
-      clearBurntLayers();
-      return;
-    }
-    notice.textContent = map.getZoom() < 9
-      ? 'EFFIS : repères rapides à cette échelle — zoome pour afficher les périmètres.'
-      : 'EFFIS : chargement des périmètres brûlés…';
+    notice.textContent =
+      'EFFIS : périmètres stabilisés du ' +
+      formatDateFr(start) + ' au ' + formatDateFr(selected) + '.';
     notice.style.display = 'block';
-    setTimeout(() => { notice.style.display = 'none'; }, 4500);
-    updateBurntForZoom();
+    setTimeout(() => { notice.style.display = 'none'; }, 5000);
   }
 
-  document.getElementById('burnt').addEventListener('change', toggleBurnt);
+  document.getElementById('burnt').addEventListener('change', loadBurntLayer);
 
-  // ==== Carte de propagation : isochrones (krigeage FIRMS, calcul hors-ligne) ====
-  // Fichier statique produit par le pipeline Python fire-propagation.
-  // Chargé à la demande. Les contours montrent où était le front à chaque
-  // tranche de 6 h (jaune = ancien, rouge = récent).
+  // ==== Emprises cumulées des détections actives FIRMS ====
+  // Chaque limite représente l'union des empreintes de pixels de feu actif
+  // retenues jusqu'à un passage satellitaire donné. Il ne s'agit ni d'un
+  // périmètre brûlé, ni d'un front continu, ni d'un temps d'arrivée interpolé.
   map.createPane('isochrones');
   map.getPane('isochrones').style.zIndex = 635;
 
   let isochronesLayer = null;
   let isochronesData = null;
-  const isoLegend = document.getElementById('isochrones-legend');
+  let isochroneLevels = [];
+  let latestSnapshotByCluster = new Map();
+  let isochroneSearchBbox = null;
+  let arrivalMarker = null;
 
-  function isoColor(hoursAgo, maxH) {
-    const t = 1 - Math.min(hoursAgo / maxH, 1); // 0 ancien, 1 récent
-    return 'rgb(255,' + Math.round(230 - t * 200) + ',' + Math.round(40 - t * 20) + ')';
+  const isoLegend = document.getElementById('isochrones-legend');
+  const addressInput = document.getElementById('address-input');
+  const addressButton = document.getElementById('address-search-button');
+  const addressSuggestions = document.getElementById('address-suggestions');
+  const arrivalResult = document.getElementById('arrival-result');
+
+  const ADDRESS_SEARCH_BUFFER_KM = 30;
+  const ADDRESS_MAX_CONTOUR_DISTANCE_KM = 6;
+
+  function updateMapLegendLayout() {
+    const aerosol = document.getElementById('aerosollegend');
+    const iso = document.getElementById('isochrones-legend');
+    if (!iso) return;
+
+    let bottom = 26;
+    const aerosolVisible =
+      aerosol &&
+      window.getComputedStyle(aerosol).display !== 'none';
+
+    const isoVisible =
+      window.getComputedStyle(iso).display !== 'none';
+
+    if (aerosolVisible && isoVisible) {
+      bottom += aerosol.offsetHeight + 10;
+    }
+
+    iso.style.bottom = bottom + 'px';
+  }
+
+  function interpolateRgb(a, b, t) {
+    const c = a.map((value, i) => Math.round(value + (b[i] - value) * t));
+    return 'rgb(' + c.join(',') + ')';
+  }
+
+  function isoColor(hoursAgo, minHoursAgo, maxHoursAgo) {
+    const range = Math.max(maxHoursAgo - minHoursAgo, 0.001);
+    const recentness = (maxHoursAgo - hoursAgo) / range;
+
+    if (recentness <= 0.58) {
+      return interpolateRgb([255, 232, 46], [255, 100, 31], recentness / 0.58);
+    }
+
+    return interpolateRgb(
+      [255, 100, 31],
+      [215, 25, 28],
+      (recentness - 0.58) / 0.42
+    );
+  }
+
+  function collectCoordinatePairs(value, output) {
+    if (!Array.isArray(value)) return;
+
+    if (
+      value.length >= 2 &&
+      Number.isFinite(Number(value[0])) &&
+      Number.isFinite(Number(value[1]))
+    ) {
+      output.push([Number(value[0]), Number(value[1])]);
+      return;
+    }
+
+    value.forEach(child => collectCoordinatePairs(child, output));
+  }
+
+  function getIsoBbox(data) {
+    if (
+      Array.isArray(data.bbox) &&
+      data.bbox.length === 4 &&
+      data.bbox.every(value => Number.isFinite(Number(value)))
+    ) {
+      return data.bbox.map(Number);
+    }
+
+    const coords = [];
+
+    (data.features || []).forEach(feature => {
+      const geometry = feature.geometry || {};
+
+      if (
+        geometry.type === 'LineString' ||
+        geometry.type === 'MultiLineString'
+      ) {
+        collectCoordinatePairs(geometry.coordinates, coords);
+      }
+    });
+
+    if (!coords.length) {
+      throw new Error('Emprises FIRMS sans coordonnées.');
+    }
+
+    return [
+      Math.min(...coords.map(coord => coord[0])),
+      Math.min(...coords.map(coord => coord[1])),
+      Math.max(...coords.map(coord => coord[0])),
+      Math.max(...coords.map(coord => coord[1]))
+    ];
+  }
+
+  function expandBboxKm(bbox, km) {
+    const [west, south, east, north] = bbox;
+    const midLat = (south + north) / 2;
+    const latPad = km / 110.574;
+    const lonPad = km / (111.320 * Math.max(Math.cos(midLat * Math.PI / 180), 0.25));
+    return [
+      west - lonPad,
+      south - latPad,
+      east + lonPad,
+      north + latPad
+    ];
+  }
+
+  function pointInBbox(lon, lat, bbox) {
+    return lon >= bbox[0] && lon <= bbox[2] &&
+      lat >= bbox[1] && lat <= bbox[3];
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function prepareIsochrones(data) {
+    const valid = (data.features || []).filter(feature => {
+      const geometry = feature && feature.geometry;
+      const properties = feature && feature.properties || {};
+
+      return geometry &&
+        (
+          geometry.type === 'LineString' ||
+          geometry.type === 'MultiLineString'
+        ) &&
+        Array.isArray(geometry.coordinates) &&
+        Number.isFinite(Number(properties.cluster_id)) &&
+        Number.isFinite(Number(properties.snapshot_index)) &&
+        Number.isFinite(Number(properties.hours_ago)) &&
+        Boolean(
+          properties.observed_until_utc ||
+          properties.estimated_time_utc
+        );
+    });
+
+    if (!valid.length) {
+      throw new Error('Aucune emprise cumulative FIRMS valide.');
+    }
+
+    data.features = valid;
+    latestSnapshotByCluster = new Map();
+
+    isochroneLevels = valid.map(feature => {
+      const properties = feature.properties || {};
+      const clusterId = Number(properties.cluster_id);
+      const snapshotIndex = Number(properties.snapshot_index);
+      const currentLatest = latestSnapshotByCluster.get(clusterId);
+
+      if (!Number.isFinite(currentLatest) || snapshotIndex > currentLatest) {
+        latestSnapshotByCluster.set(clusterId, snapshotIndex);
+      }
+
+      return {
+        cluster_id: clusterId,
+        snapshot_index: snapshotIndex,
+        hours_ago: Number(properties.hours_ago),
+        observed_until_utc:
+          properties.observed_until_utc ||
+          properties.estimated_time_utc
+      };
+    }).sort((left, right) => right.hours_ago - left.hours_ago);
+
+    isochroneSearchBbox = expandBboxKm(
+      getIsoBbox(data),
+      ADDRESS_SEARCH_BUFFER_KM
+    );
+  }
+
+  function renderIsoLegend() {
+    if (!isoLegend || !isochroneLevels.length) return;
+
+    isoLegend.innerHTML =
+      '<b>Emprises cumulées détectées</b>' +
+      '<div class="iso-grad"></div>' +
+      '<div class="iso-scale">' +
+        '<span>premières observations</span>' +
+        '<span>dernières observations</span>' +
+      '</div>' +
+      '<small class="iso-note">' +
+        'Jaune → rouge : extension cumulative des empreintes de pixels de feu actif FIRMS. ' +
+        'Les limites rouges correspondent aux observations les plus récentes. ' +
+        'Ce ne sont ni des surfaces brûlées ni des fronts continus.' +
+      '</small>';
+
+    requestAnimationFrame(updateMapLegendLayout);
+  }
+
+  async function ensureIsochronesLoaded(addToMap) {
+    if (!isochronesData) {
+      const response = await fetch(
+        'detection_envelopes.geojson',
+        { cache: 'no-store' }
+      );
+
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+
+      isochronesData = await response.json();
+      prepareIsochrones(isochronesData);
+    }
+
+    if (!isochronesLayer) {
+      const hours = isochroneLevels
+        .map(level => level.hours_ago)
+        .filter(Number.isFinite);
+
+      const oldest = Math.max(...hours);
+      const newest = Math.min(...hours);
+
+      isochronesLayer = L.geoJSON(isochronesData, {
+        pane: 'isochrones',
+
+        style: feature => {
+          const properties = feature.properties || {};
+          const clusterId = Number(properties.cluster_id);
+          const snapshotIndex = Number(properties.snapshot_index);
+          const isLatest =
+            latestSnapshotByCluster.get(clusterId) === snapshotIndex;
+
+          return {
+            color: isoColor(Number(properties.hours_ago), newest, oldest),
+            weight: isLatest ? 3.8 : 2.0,
+            opacity: isLatest ? 1 : 0.48,
+            lineCap: 'round',
+            lineJoin: 'round'
+          };
+        },
+
+        onEachFeature: (feature, layer) => {
+          const properties = feature.properties || {};
+          const clusterId = Number(properties.cluster_id);
+          const snapshotIndex = Number(properties.snapshot_index);
+          const timeText =
+            properties.observed_until_utc ||
+            properties.estimated_time_utc ||
+            '';
+          const parsedTime = timeText ? new Date(timeText) : null;
+          const timeLine =
+            parsedTime && !Number.isNaN(parsedTime.getTime())
+              ? 'Détections cumulées jusqu’au ' +
+                escapeHtml(formatArrivalDate(parsedTime)) + '<br>'
+              : '';
+          const detections = Number(properties.supported_detections_cumulative);
+          const detectionLine = Number.isFinite(detections)
+            ? 'Détections soutenues cumulées : ' + Math.round(detections) + '<br>'
+            : '';
+          const area = Number(properties.detected_area_km2);
+          const areaLine = Number.isFinite(area)
+            ? 'Surface géométrique des empreintes retenues : ' +
+              area.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) +
+              ' km²<br>'
+            : '';
+          const isLatest =
+            latestSnapshotByCluster.get(clusterId) === snapshotIndex;
+
+          layer.bindPopup(
+            '<b>Emprise cumulative détectée' +
+              (isLatest ? ' — dernière observation' : '') +
+            '</b><br>' +
+            (Number.isFinite(clusterId) ? 'Incendie ' + clusterId + '<br>' : '') +
+            timeLine +
+            detectionLine +
+            areaLine +
+            '<small>' +
+              'Union géométrique d’empreintes de pixels de feu actif FIRMS. ' +
+              'Cette surface n’est pas une surface brûlée et sa limite n’est pas un front de feu.' +
+            '</small>'
+          );
+        }
+      });
+    }
+
+    renderIsoLegend();
+
+    if (addToMap && !map.hasLayer(isochronesLayer)) {
+      isochronesLayer.addTo(map);
+    }
+
+    return isochronesData;
   }
 
   async function toggleIsochrones() {
     const on = document.getElementById('isochrones').checked;
-    if (isoLegend) isoLegend.style.display = on ? '' : 'none';
+
     if (!on) {
-      if (isochronesLayer) map.removeLayer(isochronesLayer);
+      if (isochronesLayer && map.hasLayer(isochronesLayer)) {
+        map.removeLayer(isochronesLayer);
+      }
+      if (isoLegend) isoLegend.style.display = 'none';
+      updateMapLegendLayout();
       return;
     }
-    if (isochronesLayer) { isochronesLayer.addTo(map); return; }
 
-    notice.textContent = 'Chargement de la carte de propagation…';
+    if (isoLegend) isoLegend.style.display = '';
+
+    notice.textContent = 'Chargement des emprises cumulées FIRMS…';
     notice.style.display = 'block';
+
     try {
-      if (!isochronesData) {
-        const r = await fetch('isochrones.geojson');
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        isochronesData = await r.json();
-      }
-      const hours = [...new Set(isochronesData.features
-        .map(f => Math.round(f.properties.hours_ago)))].sort((a, b) => b - a);
-      const maxH = Math.max(...hours);
-
-      isochronesLayer = L.geoJSON(isochronesData, {
-        pane: 'isochrones',
-        style: f => ({
-          color: isoColor(f.properties.hours_ago, maxH),
-          weight: 3, opacity: 0.9
-        }),
-        onEachFeature: (f, layer) => {
-          const h = Math.round(f.properties.hours_ago);
-          layer.bindPopup('Front du feu il y a <b>' + h + ' h</b>');
-        }
-      }).addTo(map);
-
-      // Légende
-      if (isoLegend) {
-        isoLegend.innerHTML = '<b>Front du feu</b><br>' + hours.map(h =>
-          '<span class="iso-sw" style="background:' + isoColor(h, maxH) + '"></span>il y a ' + h + ' h'
-        ).join('<br>');
-        isoLegend.style.display = '';
-      }
+      await ensureIsochronesLoaded(true);
       notice.style.display = 'none';
-    } catch (err) {
-      notice.textContent = 'Carte de propagation indisponible (isochrones.geojson manquant ?).';
+      updateMapLegendLayout();
+    } catch (error) {
+      console.error('Emprises FIRMS :', error);
+      notice.textContent =
+        'Emprises cumulées indisponibles (detection_envelopes.geojson absent ou invalide).';
       notice.style.display = 'block';
       setTimeout(() => { notice.style.display = 'none'; }, 8000);
       document.getElementById('isochrones').checked = false;
@@ -1906,9 +2304,689 @@
   }
 
   document.getElementById('isochrones').addEventListener('change', toggleIsochrones);
-  map.on('zoomend', () => {
-    if (document.getElementById('burnt').checked) updateBurntForZoom();
+  window.addEventListener('resize', updateMapLegendLayout);
+
+  // ---- Distance entre une adresse et les dernières emprises détectées ----
+  function localXY(lon, lat, lat0) {
+    return {
+      x: lon * 111.320 * Math.cos(lat0 * Math.PI / 180),
+      y: lat * 110.574
+    };
+  }
+
+  function pointSegmentDistanceKm(lon, lat, a, b) {
+    const lat0 = (lat + Number(a[1]) + Number(b[1])) / 3;
+    const p = localXY(lon, lat, lat0);
+    const p1 = localXY(Number(a[0]), Number(a[1]), lat0);
+    const p2 = localXY(Number(b[0]), Number(b[1]), lat0);
+
+    const vx = p2.x - p1.x;
+    const vy = p2.y - p1.y;
+    const wx = p.x - p1.x;
+    const wy = p.y - p1.y;
+    const denom = vx * vx + vy * vy;
+
+    let t = denom > 0 ? (wx * vx + wy * vy) / denom : 0;
+    t = Math.max(0, Math.min(1, t));
+
+    const dx = p.x - (p1.x + t * vx);
+    const dy = p.y - (p1.y + t * vy);
+
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function geometryLines(feature) {
+    const geometry = feature && feature.geometry || {};
+
+    if (geometry.type === 'LineString') {
+      return [geometry.coordinates || []];
+    }
+
+    if (geometry.type === 'MultiLineString') {
+      return geometry.coordinates || [];
+    }
+
+    return [];
+  }
+
+  function isClosedRing(coords) {
+    if (!Array.isArray(coords) || coords.length < 4) return false;
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+
+    return Math.abs(Number(first[0]) - Number(last[0])) < 1e-8 &&
+      Math.abs(Number(first[1]) - Number(last[1])) < 1e-8;
+  }
+
+  function pointInRing(lon, lat, coords) {
+    let inside = false;
+
+    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+      const xi = Number(coords[i][0]);
+      const yi = Number(coords[i][1]);
+      const xj = Number(coords[j][0]);
+      const yj = Number(coords[j][1]);
+
+      const intersects =
+        (yi > lat) !== (yj > lat) &&
+        lon < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-15) + xi;
+
+      if (intersects) inside = !inside;
+    }
+
+    return inside;
+  }
+
+  function pointInsideFeature(lon, lat, feature) {
+    let inside = false;
+
+    geometryLines(feature).forEach(coords => {
+      if (isClosedRing(coords) && pointInRing(lon, lat, coords)) {
+        // Règle pair-impair : une éventuelle limite de trou inverse à nouveau l'état.
+        inside = !inside;
+      }
+    });
+
+    return inside;
+  }
+
+  function distanceToFeatureKm(lon, lat, feature) {
+    let best = Infinity;
+
+    geometryLines(feature).forEach(coords => {
+      for (let i = 1; i < coords.length; i++) {
+        const distance = pointSegmentDistanceKm(
+          lon,
+          lat,
+          coords[i - 1],
+          coords[i]
+        );
+
+        if (distance < best) best = distance;
+      }
+    });
+
+    return best;
+  }
+
+  function locateAddressRelativeToIsochrones(lon, lat) {
+    const latestByCluster = new Map();
+
+    (isochronesData.features || []).forEach(feature => {
+      const properties = feature.properties || {};
+      const clusterId = Number(properties.cluster_id);
+      const snapshotIndex = Number(properties.snapshot_index);
+
+      if (!Number.isFinite(clusterId) || !Number.isFinite(snapshotIndex)) {
+        return;
+      }
+
+      const current = latestByCluster.get(clusterId);
+      const currentIndex = current
+        ? Number((current.properties || {}).snapshot_index)
+        : -Infinity;
+
+      if (!current || snapshotIndex > currentIndex) {
+        latestByCluster.set(clusterId, feature);
+      }
+    });
+
+    const candidates = [...latestByCluster.values()]
+      .map(feature => {
+        const properties = feature.properties || {};
+        const boundaryDistance = distanceToFeatureKm(lon, lat, feature);
+        const inside = pointInsideFeature(lon, lat, feature);
+        const timeText = String(
+          properties.observed_until_utc ||
+          properties.estimated_time_utc ||
+          ''
+        );
+        const parsedTime = timeText ? new Date(timeText) : null;
+
+        return {
+          distance_km: inside ? 0 : boundaryDistance,
+          boundary_distance_km: boundaryDistance,
+          inside,
+          cluster_id: Number(properties.cluster_id),
+          snapshot_index: Number(properties.snapshot_index),
+          contour_time:
+            parsedTime && !Number.isNaN(parsedTime.getTime())
+              ? parsedTime
+              : null,
+          supported_detections: Number(
+            properties.supported_detections_cumulative
+          )
+        };
+      })
+      .filter(candidate => Number.isFinite(candidate.distance_km))
+      .sort((left, right) => left.distance_km - right.distance_km);
+
+    const nearest = candidates[0];
+
+    if (!nearest) {
+      return {
+        ok: false,
+        reason: 'Aucune emprise cumulative exploitable à proximité.'
+      };
+    }
+
+    return {
+      ok: true,
+      interpretable:
+        nearest.inside ||
+        nearest.distance_km <= ADDRESS_MAX_CONTOUR_DISTANCE_KM,
+      nearest_distance_km: nearest.distance_km,
+      boundary_distance_km: nearest.boundary_distance_km,
+      inside: nearest.inside,
+      cluster_id: nearest.cluster_id,
+      contour_time: nearest.contour_time,
+      supported_detections: nearest.supported_detections
+    };
+  }
+
+  function formatArrivalDate(date) {
+    return new Intl.DateTimeFormat('fr-FR', {
+      timeZone: 'Europe/Paris',
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  }
+
+  function showArrivalMessage(html, isError) {
+    arrivalResult.innerHTML = html;
+    arrivalResult.style.display = 'block';
+    arrivalResult.style.borderLeftColor = isError ? '#ff5050' : 'var(--ember)';
+  }
+
+  function parseGeocodeResults(payload) {
+    const raw = Array.isArray(payload.results)
+      ? payload.results
+      : Array.isArray(payload.features)
+        ? payload.features
+        : [];
+
+    return raw.map(item => {
+      if (item && item.geometry && Array.isArray(item.geometry.coordinates)) {
+        const props = item.properties || {};
+        return {
+          label: props.label || props.name || props.fulltext || 'Adresse',
+          lon: Number(item.geometry.coordinates[0]),
+          lat: Number(item.geometry.coordinates[1])
+        };
+      }
+
+      return {
+        label: item.fulltext || item.label || item.name || 'Adresse',
+        lon: Number(item.x != null ? item.x : item.lon),
+        lat: Number(item.y != null ? item.y : item.lat)
+      };
+    }).filter(item => {
+      return Number.isFinite(item.lon) &&
+        Number.isFinite(item.lat) &&
+        isochroneSearchBbox &&
+        pointInBbox(item.lon, item.lat, isochroneSearchBbox);
+    });
+  }
+
+  function hideAddressSuggestions() {
+    addressSuggestions.style.display = 'none';
+    addressSuggestions.innerHTML = '';
+  }
+
+  async function selectNearbyAddress(item) {
+    hideAddressSuggestions();
+    addressInput.value = item.label;
+
+    document.getElementById('isochrones').checked = true;
+    if (isoLegend) isoLegend.style.display = '';
+
+    try {
+      await ensureIsochronesLoaded(true);
+    } catch (error) {
+      showArrivalMessage(
+        'Impossible de charger les emprises FIRMS nécessaires au calcul.',
+        true
+      );
+      return;
+    }
+
+    if (
+      !isochroneSearchBbox ||
+      !pointInBbox(item.lon, item.lat, isochroneSearchBbox)
+    ) {
+      showArrivalMessage(
+        'Adresse hors de la zone de recherche proche des incendies.',
+        true
+      );
+      return;
+    }
+
+    const location = locateAddressRelativeToIsochrones(item.lon, item.lat);
+
+    if (arrivalMarker) {
+      map.removeLayer(arrivalMarker);
+      arrivalMarker = null;
+    }
+
+    arrivalMarker = L.circleMarker([item.lat, item.lon], {
+      pane: 'firepoints',
+      radius: 7,
+      color: '#ffffff',
+      weight: 2,
+      fillColor: '#101418',
+      fillOpacity: 0.95
+    }).addTo(map);
+
+    map.setView([item.lat, item.lon], Math.max(map.getZoom(), 12));
+
+    if (!location.ok) {
+      showArrivalMessage(
+        '<b>' + escapeHtml(item.label) + '</b><br>' +
+        escapeHtml(location.reason),
+        true
+      );
+      return;
+    }
+
+    let distanceLine;
+
+    if (location.inside) {
+      distanceLine =
+        '<b>Adresse située à l’intérieur de la dernière emprise cumulative ' +
+        'détectée pour l’incendie ' + escapeHtml(location.cluster_id) + '.</b>';
+    } else if (location.nearest_distance_km < 0.1) {
+      distanceLine =
+        '<b>Adresse au contact de la limite de la dernière emprise détectée ' +
+        'pour l’incendie ' + escapeHtml(location.cluster_id) + '.</b>';
+    } else {
+      distanceLine =
+        '<b>Limite de la dernière emprise détectée pour l’incendie ' +
+        escapeHtml(location.cluster_id) + ' : ' +
+        location.nearest_distance_km.toFixed(1) + ' km.</b>';
+    }
+
+    const observationLine = location.contour_time
+      ? 'Cette emprise cumule les détections actives jusqu’au ' +
+        escapeHtml(formatArrivalDate(location.contour_time)) + '.'
+      : 'Dernière emprise cumulative disponible pour cet incendie.';
+
+    let interpretation;
+
+    if (location.inside) {
+      interpretation =
+        'Cette position se trouve dans l’union géométrique des empreintes de pixels ' +
+        'de feu actif retenues. Cela ne prouve pas que toute la surface a brûlé.';
+    } else if (location.interpretable) {
+      interpretation =
+        'L’adresse se trouve dans le voisinage spatial de la dernière emprise FIRMS détectée.';
+    } else {
+      interpretation =
+        'L’adresse est à plus de ' +
+        ADDRESS_MAX_CONTOUR_DISTANCE_KM +
+        ' km de la limite de la dernière emprise détectée.';
+    }
+
+    const detail =
+      distanceLine +
+      '<br>' +
+      observationLine +
+      '<br>' +
+      interpretation +
+      '<br><small>' +
+      'Produit fondé sur des passages satellitaires discontinus. ' +
+      'Il ne décrit ni un périmètre brûlé, ni un front continu, ' +
+      'ni l’heure de passage du feu à cette adresse.' +
+      '</small>';
+
+    arrivalMarker
+      .bindPopup(
+        '<b>' + escapeHtml(item.label) + '</b><br>' + detail
+      )
+      .openPopup();
+
+    showArrivalMessage(
+      '<b>' + escapeHtml(item.label) + '</b><br>' + detail,
+      !location.interpretable
+    );
+  }
+
+  let addressSearchTimer = null;
+  let addressSearchSerial = 0;
+  let lastAddressResults = [];
+
+  function renderAddressSuggestions(results) {
+    lastAddressResults = results;
+    addressSuggestions.innerHTML = '';
+
+    if (!results.length) {
+      hideAddressSuggestions();
+      showArrivalMessage(
+        'Aucune adresse trouvée dans le voisinage autorisé des emprises détectées.',
+        true
+      );
+      return;
+    }
+
+    results.forEach((item, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('role', 'option');
+      button.dataset.addressIndex = String(index);
+      button.textContent = item.label;
+      button.addEventListener('click', () => selectNearbyAddress(item));
+      addressSuggestions.appendChild(button);
+    });
+
+    addressSuggestions.style.display = 'block';
+  }
+
+  async function searchNearbyAddresses() {
+    const text = addressInput.value.trim();
+
+    if (text.length < 3) {
+      hideAddressSuggestions();
+      showArrivalMessage(
+        'Saisis au moins trois caractères.',
+        true
+      );
+      return;
+    }
+
+    const requestId = ++addressSearchSerial;
+    addressButton.disabled = true;
+    addressButton.textContent = 'Recherche…';
+
+    try {
+      await ensureIsochronesLoaded(false);
+
+      const bbox = isochroneSearchBbox
+        .map(value => value.toFixed(6))
+        .join(',');
+
+      const url =
+        OPENAQ_PROXY +
+        '/geocode?text=' + encodeURIComponent(text) +
+        '&bbox=' + encodeURIComponent(bbox);
+
+      const response = await fetch(url, { cache: 'no-store' });
+
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+
+      const payload = await response.json();
+
+      if (requestId !== addressSearchSerial) return;
+
+      renderAddressSuggestions(parseGeocodeResults(payload));
+    } catch (error) {
+      if (requestId !== addressSearchSerial) return;
+      console.error('Recherche d’adresse :', error);
+      hideAddressSuggestions();
+      showArrivalMessage(
+        'Recherche d’adresse indisponible. Vérifie que le Worker mis à jour est déployé.',
+        true
+      );
+    } finally {
+      if (requestId === addressSearchSerial) {
+        addressButton.disabled = false;
+        addressButton.textContent = 'Rechercher';
+      }
+    }
+  }
+
+  addressButton.addEventListener('click', searchNearbyAddresses);
+
+  addressInput.addEventListener('input', () => {
+    if (addressSearchTimer) clearTimeout(addressSearchTimer);
+
+    const text = addressInput.value.trim();
+
+    if (text.length < 4) {
+      hideAddressSuggestions();
+      return;
+    }
+
+    addressSearchTimer = setTimeout(searchNearbyAddresses, 450);
   });
+
+  addressInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+
+      if (lastAddressResults.length &&
+          addressSuggestions.style.display !== 'none') {
+        selectNearbyAddress(lastAddressResults[0]);
+      } else {
+        searchNearbyAddresses();
+      }
+    }
+
+    if (event.key === 'Escape') {
+      hideAddressSuggestions();
+    }
+  });
+
+  document.addEventListener('click', event => {
+    const search = document.getElementById('arrival-search');
+    if (search && !search.contains(event.target)) {
+      hideAddressSuggestions();
+    }
+  });
+
+
+
+  /* HOME_LATEST_SATELLITE_V3 */
+  async function selectLatestHomeSatellite() {
+    if (userPickedDate) return;
+
+    const candidates = [
+      'VIIRS_NOAA20_CorrectedReflectance_TrueColor',
+      'VIIRS_SNPP_CorrectedReflectance_TrueColor',
+      'MODIS_Aqua_CorrectedReflectance_TrueColor',
+      'MODIS_Terra_CorrectedReflectance_TrueColor'
+    ];
+
+    const probePoints = [
+      { lat: 44.85, lon: -1.05 },
+      { lat: 44.42, lon: -1.13 }
+    ];
+
+    const zoom = 8;
+
+    function tileCoordinates(lon, lat) {
+      const n = Math.pow(2, zoom);
+      const latRad = lat * Math.PI / 180;
+
+      return {
+        x: Math.floor((lon + 180) / 360 * n),
+        y: Math.floor(
+          (
+            1 -
+            Math.asinh(Math.tan(latRad)) / Math.PI
+          ) / 2 * n
+        )
+      };
+    }
+
+    async function tileContainsImage(layer, date, point) {
+      const tile = tileCoordinates(point.lon, point.lat);
+
+      const url =
+        GIBS + '/' +
+        layer + '/default/' +
+        date +
+        '/GoogleMapsCompatible_Level9/' +
+        zoom + '/' +
+        tile.y + '/' +
+        tile.x + '.jpg' +
+        '?probe=' + Date.now();
+
+      try {
+        const response = await fetch(url, {
+          cache: 'no-store'
+        });
+
+        if (!response.ok) return false;
+
+        const blob = await response.blob();
+
+        if (
+          !blob.type.startsWith('image/') ||
+          blob.size < 800
+        ) {
+          return false;
+        }
+
+        const bitmap = await createImageBitmap(blob);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+
+        const context = canvas.getContext(
+          '2d',
+          { willReadFrequently: true }
+        );
+
+        if (!context) {
+          bitmap.close();
+          return false;
+        }
+
+        context.drawImage(bitmap, 0, 0, 32, 32);
+        bitmap.close();
+
+        const pixels = context.getImageData(
+          0,
+          0,
+          32,
+          32
+        ).data;
+
+        let samples = 0;
+        let visible = 0;
+
+        for (
+          let index = 0;
+          index < pixels.length;
+          index += 16
+        ) {
+          const alpha = pixels[index + 3];
+
+          if (alpha < 10) continue;
+
+          const brightness =
+            (
+              pixels[index] +
+              pixels[index + 1] +
+              pixels[index + 2]
+            ) / 3;
+
+          samples++;
+
+          if (brightness > 8) {
+            visible++;
+          }
+        }
+
+        return (
+          samples > 0 &&
+          visible / samples > 0.08
+        );
+
+      } catch (error) {
+        return false;
+      }
+    }
+
+    notice.textContent =
+      'Recherche de la dernière image satellite disponible…';
+
+    notice.style.display = 'block';
+
+    for (let daysBack = 0; daysBack <= 7; daysBack++) {
+      const date = isoDaysAgo(daysBack);
+
+      notice.textContent =
+        'Vérification des images du ' +
+        formatDateFr(date) +
+        '…';
+
+      const results = await Promise.all(
+        candidates.map(async layer => {
+          const tests = await Promise.all(
+            probePoints.map(point =>
+              tileContainsImage(
+                layer,
+                date,
+                point
+              )
+            )
+          );
+
+          return {
+            layer,
+            available: tests.some(Boolean)
+          };
+        })
+      );
+
+      const selected = results.find(
+        result => result.available
+      );
+
+      if (!selected) continue;
+      if (userPickedDate) return;
+
+      const satelliteSelect =
+        document.getElementById('sat');
+
+      satelliteSelect.value = selected.layer;
+      dateInput.value = date;
+      autoStep = 0;
+
+      rebuild();
+
+      const label =
+        satelliteSelect.options[
+          satelliteSelect.selectedIndex
+        ].text;
+
+      notice.textContent =
+        'Dernière image disponible : ' +
+        label +
+        ' — ' +
+        formatDateFr(date) +
+        '.';
+
+      notice.style.display = 'block';
+
+      console.info(
+        'Accueil satellite :',
+        selected.layer,
+        date
+      );
+
+      setTimeout(() => {
+        notice.style.display = 'none';
+      }, 5000);
+
+      return;
+    }
+
+    notice.textContent =
+      'Aucune image satellite exploitable trouvée durant les sept derniers jours.';
+
+    notice.style.display = 'block';
+  }
+
+  // L’ancien chargement peut s’afficher brièvement, puis cette fonction
+  // le remplace par la date et le satellite réellement disponibles.
+  setTimeout(selectLatestHomeSatellite, 0);
 
 </script>
 </body>
