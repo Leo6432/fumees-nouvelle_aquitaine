@@ -1506,8 +1506,16 @@
   let communesLayer = null;
   let communesData = null;
   let atmoByInsee = null;
+  let atmoDataDateEch = "";
+  let atmoDataDateDif = "";
   let atmoDataDate = null;
   let atmoRequestSerial = 0;
+
+  function isoDaysAgoFrom(isoDate, n) {
+    const d = new Date(isoDate + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - n);
+    return d.toISOString().slice(0, 10);
+  }
 
   function nextIsoDay(isoDate) {
     const d = new Date(isoDate + 'T12:00:00Z');
@@ -1526,6 +1534,8 @@
     const mapByCode = {};
     const nextDate = nextIsoDay(targetDate);
     let received = 0;
+    let realDateEch = '';   // date d'échéance réellement renvoyée par le serveur
+    let realDateDif = '';   // horodatage de diffusion le plus récent
 
     for (const dep of deps) {
       const depFilter = "type_zone = 'commune' AND code_zone LIKE '" + dep + "%'";
@@ -1580,6 +1590,8 @@
         const code = String(p.code_zone).trim().padStart(5, '0');
         const previous = mapByCode[code];
         // En cas de doublon pour date_ech, garder la diffusion la plus récente.
+        if (p.date_ech && String(p.date_ech) > realDateEch) realDateEch = String(p.date_ech);
+        if (p.date_dif && String(p.date_dif) > realDateDif) realDateDif = String(p.date_dif);
         if (!previous || String(p.date_dif || '') >= String(previous.date_dif || '')) {
           mapByCode[code] = p;
         }
@@ -1588,7 +1600,7 @@
 
     console.info('ATMO :', received, 'enregistrements reçus pour le', targetDate,
       ';', Object.keys(mapByCode).length, 'communes retenues.');
-    return mapByCode;
+    return { byCode: mapByCode, dateEch: realDateEch, dateDif: realDateDif };
   }
 
   const POLLUANT_LIB = {
@@ -1659,16 +1671,40 @@
         communesData = await r.json();
       }
 
-      const nextMap = await fetchAtmoIndices(targetDate);
+      // Tente la date demandée ; si vide (indice du jour pas encore publié,
+      // typiquement avant ~13h), recule automatiquement jusqu'à 2 jours.
+      let result = await fetchAtmoIndices(targetDate);
+      let usedDate = targetDate;
+      let fellBack = false;
+      for (let back = 1; back <= 2 && Object.keys(result.byCode).length === 0; back++) {
+        const prev = isoDaysAgoFrom(targetDate, back);
+        const r2 = await fetchAtmoIndices(prev);
+        if (Object.keys(r2.byCode).length > 0) {
+          result = r2; usedDate = prev; fellBack = true; break;
+        }
+      }
+
       if (requestId !== atmoRequestSerial ||
           !document.getElementById('communes').checked ||
           dateInput.value !== targetDate) return;
 
-      if (Object.keys(nextMap).length === 0) throw new Error('no-data');
-      atmoByInsee = nextMap;
-      atmoDataDate = targetDate;
+      if (Object.keys(result.byCode).length === 0) throw new Error('no-data');
+      atmoByInsee = result.byCode;
+      atmoDataDate = usedDate;
+      atmoDataDateEch = result.dateEch || '';
+      atmoDataDateDif = result.dateDif || '';
       renderCommunes();
-      notice.style.display = 'none';
+      // Bandeau de fraîcheur : date d'échéance + heure de diffusion réelles
+      let fresh = 'Indice ATMO — échéance du ' + formatDateFr(usedDate);
+      if (result.dateDif) {
+        const dif = new Date(result.dateDif);
+        if (!isNaN(dif)) fresh += ', diffusé le ' +
+          dif.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+      }
+      if (fellBack) fresh += ' (jour demandé pas encore publié)';
+      notice.textContent = fresh;
+      notice.style.display = 'block';
+      setTimeout(() => { notice.style.display = 'none'; }, 7000);
       updateAtmoLegend();
     } catch (err) {
       if (requestId !== atmoRequestSerial) return;
