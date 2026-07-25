@@ -112,8 +112,237 @@
     padding:7px 2px 1px;
   }
   .toggle{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+
+  .fire-progression-controls{
+    display:none;
+    width:100%;
+    padding:7px 9px 9px;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    box-sizing:border-box;
+  }
+
+  .fire-progression-controls.is-visible{
+    display:block;
+  }
+
+  .fire-progression-map-panel{
+    display:none;
+    position:absolute;
+    top:12px;
+    right:12px;
+    z-index:1100;
+    width:min(390px,calc(100% - 24px));
+    margin:0;
+    overflow:hidden;
+    border:1px solid #46515e;
+    border-radius:9px;
+    background:rgba(16,20,24,.94);
+    box-shadow:0 4px 18px rgba(0,0,0,.38);
+    color:var(--smoke);
+  }
+
+  .fire-progression-map-panel.is-visible{
+    display:block;
+  }
+
+  .fire-progression-map-panel summary{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:8px 10px;
+    cursor:pointer;
+    list-style:none;
+    user-select:none;
+    color:var(--paper);
+    font-size:.78rem;
+    font-weight:600;
+  }
+
+  .fire-progression-map-panel summary::-webkit-details-marker{
+    display:none;
+  }
+
+  .fire-progression-map-panel summary::before{
+    content:"▸";
+    color:var(--ember);
+    transition:transform .15s ease;
+  }
+
+  .fire-progression-map-panel[open] summary::before{
+    transform:rotate(90deg);
+  }
+
+  .fire-progression-map-panel[open] summary{
+    border-bottom:1px solid #38424e;
+  }
+
+  .fire-progression-map-panel:not([open]){
+    width:auto;
+    max-width:calc(100% - 24px);
+  }
+
+  .fire-progression-age-title{
+    margin-bottom:3px;
+    color:var(--paper);
+    font-size:.7rem;
+    font-weight:600;
+  }
+
+  .fire-progression-age-help{
+    margin-bottom:6px;
+    color:var(--smoke);
+    font-size:.63rem;
+    line-height:1.35;
+  }
+
+  .fire-progression-age-bins{
+    display:grid;
+    gap:2px;
+    margin-bottom:8px;
+  }
+
+  .fire-progression-age-bin{
+    display:grid;
+    grid-template-columns:13px 1fr auto;
+    align-items:center;
+    gap:7px;
+    width:100%;
+    padding:3px 5px;
+    border:1px solid transparent;
+    border-radius:5px;
+    background:transparent;
+    color:var(--smoke);
+    font:inherit;
+    font-size:.66rem;
+    text-align:left;
+    cursor:pointer;
+  }
+
+  .fire-progression-age-bin:hover{
+    background:rgba(255,255,255,.07);
+  }
+
+  .fire-progression-age-bin.is-active{
+    border-color:#8793a1;
+    background:rgba(255,255,255,.11);
+    color:var(--paper);
+  }
+
+  .fire-progression-age-bin.is-empty{
+    opacity:.38;
+    cursor:default;
+  }
+
+  .fire-progression-age-swatch{
+    width:11px;
+    height:11px;
+    border:1px solid rgba(16,20,24,.75);
+    border-radius:50%;
+  }
+
+  .fire-progression-age-value{
+    min-width:52px;
+    color:#aeb7c2;
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .fire-progression-options{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:5px 10px;
+  }
+
+  @media (max-width:600px){
+    .fire-progression-map-panel{
+      top:10px;
+      right:10px;
+      width:min(340px,calc(100% - 20px));
+    }
+
+    .fire-progression-options{
+      grid-template-columns:1fr;
+    }
+  }
+
+  .fire-progression-controls input[type="range"]{
+    width:100%;
+    margin:6px 0 3px;
+  }
+
+  .fire-progression-status{
+    color:var(--smoke);
+    font-size:.72rem;
+  }
+
+  #arrival-search{
+    display:none !important;
+  }
+
+  .fire-progression-legend{
+    margin-top:8px;
+    padding-top:8px;
+    border-top:1px solid #38424e;
+    font-size:.72rem;
+    color:var(--smoke);
+  }
+
+  .fire-progression-legend-title{
+    margin-bottom:6px;
+    color:var(--paper);
+    font-weight:600;
+  }
+
+  .fire-progression-gradient{
+    height:8px;
+    border-radius:5px;
+    background:linear-gradient(
+      90deg,
+      #fff4b8 0%,
+      #ffc46b 45%,
+      #f05a3f 75%,
+      #a51545 100%
+    );
+  }
+
+  .fire-progression-gradient-labels{
+    display:flex;
+    justify-content:space-between;
+    margin:2px 0 7px;
+    font-size:.66rem;
+  }
+
+  .fire-progression-options{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 12px;
+  }
+
+  .fire-progression-options label{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    cursor:pointer;
+    user-select:none;
+  }
+
+  .fire-progression-options input{
+    accent-color:var(--ember);
+  }
   .toggle input{accent-color:var(--ember)}
-  #map{flex:1;min-height:0}
+  .map-shell{
+    position:relative;
+    flex:1;
+    min-height:0;
+  }
+
+  #map{
+    width:100%;
+    height:100%;
+    min-height:0;
+  }
   footer{
     background:var(--panel);color:var(--smoke);
     font-size:.72rem;padding:6px 16px;line-height:1.5;
@@ -371,6 +600,19 @@
 
   /* Sur téléphone : petit bouton replié par défaut.
      Une fois ouverte, la légende reste étroite et le texte d'aide disparaît. */
+  .distance-line-label{
+    background:rgba(16,20,24,.92);
+    border:1px solid rgba(255,255,255,.7);
+    border-radius:999px;
+    color:#fff;
+    box-shadow:0 2px 8px rgba(0,0,0,.4);
+    font-weight:700;
+    font-size:.74rem;
+    padding:3px 7px;
+    white-space:nowrap;
+  }
+  .distance-line-label::before{display:none}
+
   @media (max-width:768px){
     .firms-legend{
       min-width:0;
@@ -475,14 +717,17 @@
           <input type="checkbox" id="wind">Vent actuel (ECMWF)
         </label>
 
-        <label class="toggle" title="Périmètres stabilisés EFFIS (couche modis.ba), sur les 7 jours précédant la date choisie">
+        <label class="toggle" title="Périmètres stabilisés EFFIS, affichés en arrière-plan des données FIRMS">
           <input type="checkbox" id="burnt">Surfaces brûlées (EFFIS)
         </label>
 
         <label class="toggle"
-            title="Emprises cumulées des détections actives FIRMS observées lors des passages satellitaires">
-            <input type="checkbox" id="isochrones">Emprises détectées (FIRMS)
-          </label>
+          title="Reconstitution temporelle causale à partir des passages FIRMS">
+          <input type="checkbox" id="fire-progression">
+          Évolution observée du feu
+        </label>
+
+        
 
         <div class="arrival-search" id="arrival-search">
           <label class="arrival-search-title" for="address-input">
@@ -494,7 +739,7 @@
             <button type="button" id="address-search-button">Rechercher</button>
           </div>
           <small class="arrival-search-help" id="arrival-search-help">
-            Distance à la limite de la dernière emprise cumulative détectée pour chaque incendie.
+            Trace une ligne jusqu’à la dernière limite cumulative détectée la plus proche.
           </small>
           <div class="address-suggestions" id="address-suggestions" role="listbox"></div>
           <div class="arrival-result" id="arrival-result" aria-live="polite"></div>
@@ -522,7 +767,80 @@
   </div>
 </header>
 
-<div id="map"></div>
+<div class="map-shell">
+  <div id="map"></div>
+
+  <details class="fire-progression-map-panel"
+    id="fire-progression-map-panel"
+    open>
+
+    <summary>Évolution observée du feu</summary>
+
+  <div class="fire-progression-controls"
+            id="fire-progression-controls">
+
+            <label for="fire-progression-slider">
+              Passage satellitaire
+            </label>
+
+            <input type="range"
+              id="fire-progression-slider"
+              min="0"
+              max="0"
+              value="0"
+              step="1">
+
+            <div class="fire-progression-status"
+              id="fire-progression-status">
+              Chargement…
+            </div>
+
+            <div class="fire-progression-legend">
+              <div class="fire-progression-age-title">
+                Âge de la première détection
+              </div>
+
+              <div class="fire-progression-age-help">
+                Rouge : récent · jaune pâle : ancien.<br>
+                Cliquez sur une ou plusieurs périodes pour les afficher.
+              </div>
+
+              <div class="fire-progression-age-bins"
+                id="fire-progression-age-bins">
+              </div>
+
+              <div class="fire-progression-options">
+                <label>
+                  <input type="checkbox"
+                    id="fire-progression-arrival"
+                    checked>
+                  Afficher les zones
+                </label>
+
+                <label>
+                  <input type="checkbox"
+                    id="fire-progression-isolines">
+                  Isolignes
+                </label>
+
+                <label>
+                  <input type="checkbox"
+                    id="fire-progression-observed"
+                    checked>
+                  Détections actives du passage
+                </label>
+
+                <label>
+                  <input type="checkbox"
+                    id="fire-progression-projection"
+                    checked>
+                  Projection +1 h
+                </label>
+              </div>
+            </div>
+          </div>
+  </details>
+</div>
 
 <div id="atmolegend"><b>Indice ATMO du jour</b><br>
   <span class="sw" style="background:#50f0e6"></span>Bon<br>
@@ -540,7 +858,6 @@
   <small>Gris pâle : faible ou nul · jaune/orange : panache marqué · rouge : signal très fort.<br>
   Donnée satellitaire en bandes de passage, pas une mesure au sol.</small>
 </div>
-<div id="isochrones-legend"></div>
 <div class="notice" id="notice"></div>
 
 <footer>
@@ -553,8 +870,7 @@
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
     Indice ATMO (points) : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL) ; détail par commune sur la <a href="https://www.atmo-nouvelleaquitaine.org/air-commune">carte officielle</a>.
     Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS — périmètres stabilisés de la couche <code>modis.ba</code>, fenêtre de 7 jours se terminant à la date choisie.
-    Emprises détectées : union cumulative des empreintes de pixels de feu actif FIRMS de confiance nominale ou élevée, regroupées par passage satellitaire. Ce produit n’est ni un périmètre brûlé, ni un front de feu continu, ni une interpolation du temps d’arrivée.
-    Recherche d’adresse : service de géocodage de la Géoplateforme IGN, données de la Base Adresse Nationale ; comparaison avec la dernière emprise cumulative détectée de chacun des deux incendies, sans estimation du passage du feu à l’adresse.
+    Recherche d’adresse : service de géocodage de la Géoplateforme IGN, données de la Base Adresse Nationale ; ligne et distance jusqu’à la limite détectée la plus proche, sans extrapolation opérationnelle.
     Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Limites de communes : IGN Admin Express COG 2026 (Licence ouverte).
   </details>
 </footer>
@@ -947,7 +1263,7 @@
   ];
 
   let fireRecords = [];
-  let activeFireAgeBin = 'all';
+  const activeFireAgeBins = new Set();
 
   // Sur mobile, la légende n'occupe qu'un petit bouton au chargement.
   let firmsLegendCollapsed = mobileView;
@@ -961,7 +1277,10 @@
 
     const firesOn = document.getElementById('fires').checked;
     firmsLegendEl.classList.toggle('is-hidden', !firesOn);
-    firmsLegendEl.classList.toggle('has-filter', activeFireAgeBin !== 'all');
+    firmsLegendEl.classList.toggle(
+      'has-filter',
+      activeFireAgeBins.size > 0
+    );
     firmsLegendEl.classList.toggle('is-collapsed', firmsLegendCollapsed);
 
     if (!firesOn) return;
@@ -975,9 +1294,14 @@
     });
 
     const visibleLegendCount =
-      activeFireAgeBin === 'all'
+      activeFireAgeBins.size === 0
         ? fireRecords.length
-        : (counts[activeFireAgeBin] || 0);
+        : Array.from(activeFireAgeBins)
+            .reduce(
+              (total, binId) =>
+                total + (counts[binId] || 0),
+              0
+            );
 
     firmsLegendEl.innerHTML =
       '<button type="button" class="firms-legend-toggle" ' +
@@ -994,22 +1318,22 @@
       '<div class="firms-legend-body">' +
         '<small class="firms-help">' +
           'Rouge : plus récent · jaune clair : plus ancien.<br>' +
-          'Clique sur une couleur pour isoler cette période.' +
+          'Clique sur une ou plusieurs couleurs pour les afficher.' +
         '</small>' +
 
         '<button type="button" class="firms-all ' +
-          (activeFireAgeBin === 'all' ? 'is-active' : '') +
+          (activeFireAgeBins.size === 0 ? 'is-active' : '') +
           '" data-fire-bin="all" aria-pressed="' +
-          (activeFireAgeBin === 'all') + '">' +
+          (activeFireAgeBins.size === 0) + '">' +
           '<span class="firms-label">Tous les foyers</span>' +
           '<span class="firms-count">' + fireRecords.length + '</span>' +
         '</button>' +
 
         FIRE_AGE_BINS.map(bin =>
           '<button type="button" class="firms-bin ' +
-            (activeFireAgeBin === bin.id ? 'is-active' : '') +
+            (activeFireAgeBins.has(bin.id) ? 'is-active' : '') +
             '" data-fire-bin="' + bin.id + '" aria-pressed="' +
-            (activeFireAgeBin === bin.id) + '">' +
+            activeFireAgeBins.has(bin.id) + '">' +
             '<span class="firms-sw" style="background:' +
               bin.color +
             '"></span>' +
@@ -1032,11 +1356,15 @@
       button.addEventListener('click', () => {
         const requested = button.dataset.fireBin;
 
-        // Reclique sur la classe active : retour à tous les foyers.
-        activeFireAgeBin =
-          requested === activeFireAgeBin && requested !== 'all'
-            ? 'all'
-            : requested;
+        if (requested === 'all') {
+          activeFireAgeBins.clear();
+        } else if (
+          activeFireAgeBins.has(requested)
+        ) {
+          activeFireAgeBins.delete(requested);
+        } else {
+          activeFireAgeBins.add(requested);
+        }
 
         renderFireLayer();
 
@@ -1063,7 +1391,12 @@
     let visibleCount = 0;
 
     fireRecords.forEach(rec => {
-      if (activeFireAgeBin !== 'all' && rec.ageBin !== activeFireAgeBin) return;
+      if (
+        activeFireAgeBins.size > 0 &&
+        !activeFireAgeBins.has(rec.ageBin)
+      ) {
+        return;
+      }
       L.circleMarker([rec.lat, rec.lon], {
         pane: 'firepoints',
         radius: Math.min(4 + Math.sqrt(rec.frp) / 2, 14),
@@ -1130,13 +1463,368 @@
   }
 
   let firmsLoading = false;
+  let firmsLoadSerial = 0;
   let firmsLastRefresh = 0;
   const FIRMS_REFRESH_MS = 15 * 60 * 1000;
 
-  async function loadFirms() {
+  function buildFireRecords(rows) {
+    const nextFireRecords = [];
+
+    rows.forEach(row => {
+      const lat = parseFloat(row.latitude);
+      const lon = parseFloat(row.longitude);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+      const age = fireAgeHours(row);
+
+      // Vraie fenêtre glissante de 48 heures.
+      if (!Number.isFinite(age) || age < -0.5 || age > 48) return;
+
+      const frp = parseFloat(row.frp) || 0;
+      const scanKm = parseFloat(row.scan);
+      const trackKm = parseFloat(row.track);
+
+      const acquisitionTime = String(
+        row.acq_time || '0'
+      ).padStart(4, '0');
+
+      const detectedAt = new Date(
+        row.acq_date +
+        'T' +
+        acquisitionTime.slice(0, 2) +
+        ':' +
+        acquisitionTime.slice(2) +
+        ':00Z'
+      );
+
+      const ageBin = getFireAgeBin(age);
+      if (!ageBin) return;
+
+      const popup =
+        '<b>Foyer détecté</b><br>' +
+        row.acq_date +
+        ' ' +
+        (row.acq_time || '')
+          .padStart(4, '0')
+          .replace(/(..)(..)/, '$1h$2 UTC') +
+        '<br>Âge : ' + age.toFixed(1) + ' h' +
+        '<br>Classe temporelle : ' + ageBin.label +
+        '<br>Satellite : ' + (row.satellite || '?') +
+        '<br>Instrument : ' + (row.instrument || '?') +
+        '<br>Flux FIRMS : ' + (row._firmsSource || '?') +
+        '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
+        '<br>Confiance : ' + formatFireConfidence(row);
+
+      nextFireRecords.push({
+        lat,
+        lon,
+        age,
+        ageBin: ageBin.id,
+        color: ageBin.color,
+        frp,
+
+        scanKm:
+          Number.isFinite(scanKm)
+            ? scanKm
+            : null,
+
+        trackKm:
+          Number.isFinite(trackKm)
+            ? trackKm
+            : null,
+
+        detectedAtMs:
+          Number.isNaN(detectedAt.getTime())
+            ? null
+            : detectedAt.getTime(),
+
+        detectedAtUtc:
+          Number.isNaN(detectedAt.getTime())
+            ? null
+            : detectedAt.toISOString(),
+
+        source: row._firmsSource || '',
+        satellite: row.satellite || '',
+        instrument: row.instrument || '',
+        confidence: row.confidence || '',
+        popup
+      });
+    });
+
+    return nextFireRecords;
+  }
+
+
+  // ==== Détections FIRMS récentes utilisables pour la distance live ====
+  // Une détection isolée reste disponible afin qu'un nouveau départ
+  // apparaisse immédiatement, mais elle sera signalée comme non soutenue.
+  const LIVE_FIRE_MAX_AGE_HOURS = 8;
+
+  const LIVE_SUPPORT_DISTANCE_KM = {
+    VIIRS: 0.75,
+    MODIS: 1.50
+  };
+
+  function liveDetectionConfidenceAccepted(record) {
+    const value = String(
+      record.confidence || ''
+    ).trim();
+
+    if (
+      String(record.instrument)
+        .toUpperCase() === 'VIIRS'
+    ) {
+      return ['n', 'h'].includes(
+        value.toLowerCase()
+      );
+    }
+
+    if (
+      String(record.instrument)
+        .toUpperCase() === 'MODIS'
+    ) {
+      const numeric = Number(value);
+      return (
+        Number.isFinite(numeric) &&
+        numeric >= 30
+      );
+    }
+
+    return false;
+  }
+
+  function pointDistanceKm(
+    lon1,
+    lat1,
+    lon2,
+    lat2
+  ) {
+    const meanLat =
+      (lat1 + lat2) / 2 *
+      Math.PI / 180;
+
+    const dx =
+      (lon2 - lon1) *
+      111.320 *
+      Math.cos(meanLat);
+
+    const dy =
+      (lat2 - lat1) *
+      110.574;
+
+    return Math.sqrt(
+      dx * dx +
+      dy * dy
+    );
+  }
+
+  function equivalentPixelRadiusKm(record) {
+    const scan = Number(record.scanKm);
+    const track = Number(record.trackKm);
+
+    if (
+      Number.isFinite(scan) &&
+      scan > 0 &&
+      Number.isFinite(track) &&
+      track > 0
+    ) {
+      return Math.sqrt(
+        scan * track / Math.PI
+      );
+    }
+
+    return (
+      String(record.instrument)
+        .toUpperCase() === 'MODIS'
+    )
+      ? Math.sqrt(1.0 / Math.PI)
+      : Math.sqrt(
+          0.375 * 0.375 /
+          Math.PI
+        );
+  }
+
+  function getLiveFireCandidates() {
+    const recent = fireRecords
+      .filter(record =>
+        Number.isFinite(record.age) &&
+        record.age >= -0.5 &&
+        record.age <=
+          LIVE_FIRE_MAX_AGE_HOURS &&
+        liveDetectionConfidenceAccepted(
+          record
+        )
+      )
+      .map(record => ({
+        ...record,
+        pixelRadiusKm:
+          equivalentPixelRadiusKm(
+            record
+          ),
+        samePassSupported: false,
+        neighbourCount: 0
+      }));
+
+    const groups = new Map();
+
+    recent.forEach(record => {
+      const key = [
+        record.source,
+        record.satellite,
+        record.instrument,
+        record.detectedAtMs
+      ].join('|');
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+
+      groups.get(key).push(record);
+    });
+
+    groups.forEach(group => {
+      const instrument =
+        String(
+          group[0]?.instrument || ''
+        ).toUpperCase();
+
+      const threshold =
+        LIVE_SUPPORT_DISTANCE_KM[
+          instrument
+        ] || 0.75;
+
+      for (
+        let i = 0;
+        i < group.length;
+        i++
+      ) {
+        let neighbours = 0;
+
+        for (
+          let j = 0;
+          j < group.length;
+          j++
+        ) {
+          if (i === j) continue;
+
+          const distance =
+            pointDistanceKm(
+              group[i].lon,
+              group[i].lat,
+              group[j].lon,
+              group[j].lat
+            );
+
+          if (distance <= threshold) {
+            neighbours++;
+          }
+        }
+
+        group[i].neighbourCount =
+          neighbours;
+
+        group[i].samePassSupported =
+          neighbours >= 1;
+      }
+    });
+
+    return recent;
+  }
+
+  function logLiveFireSummary() {
+    const candidates =
+      getLiveFireCandidates();
+
+    const supported =
+      candidates.filter(
+        record =>
+          record.samePassSupported
+      );
+
+    const isolated =
+      candidates.filter(
+        record =>
+          !record.samePassSupported
+      );
+
+    console.info(
+      'FIRMS distance live :',
+      candidates.length,
+      'détections récentes retenues ;',
+      supported.length,
+      'soutenues ;',
+      isolated.length,
+      'isolées ; fenêtre =',
+      LIVE_FIRE_MAX_AGE_HOURS,
+      'h'
+    );
+
+    console.table(
+      isolated.map(record => ({
+        date_utc:
+          record.detectedAtUtc,
+        satellite:
+          record.satellite,
+        instrument:
+          record.instrument,
+        latitude:
+          record.lat,
+        longitude:
+          record.lon,
+        frp_mw:
+          record.frp,
+        voisins:
+          record.neighbourCount
+      }))
+    );
+
+    return {
+      candidates,
+      supported,
+      isolated
+    };
+  }
+
+  async function fetchFirmsSource(source) {
+    const url =
+      OPENAQ_PROXY +
+      '/firms/' +
+      source +
+      '/' +
+      FIRMS_BBOX +
+      '/3';
+
+    const resp = await fetch(url, { cache: 'no-store' });
+
+    if (!resp.ok) {
+      throw new Error(source + ' : HTTP ' + resp.status);
+    }
+
+    console.info(
+      'FIRMS',
+      source,
+      'cache =',
+      resp.headers.get('X-Proxy-Cache') || '?',
+      'NASA interrogée à',
+      resp.headers.get('X-Upstream-Fetched-At') || '?'
+    );
+
+    const rows = parseCsv(await resp.text()).map(row => ({
+      ...row,
+      _firmsSource: source
+    }));
+
+    console.info('FIRMS', source, ':', rows.length, 'détections brutes reçues');
+    return rows;
+  }
+
+  async function loadFirms(forceRefresh = false) {
     const firesInput = document.getElementById('fires');
 
     if (!firesInput.checked) {
+      firmsLoadSerial++;
+      firmsLoading = false;
       if (fireLayer) {
         map.removeLayer(fireLayer);
         fireLayer = null;
@@ -1145,162 +1833,108 @@
       return;
     }
 
-    // Évite deux actualisations simultanées.
+    // Réutilise immédiatement les données récentes quand la couche est recochée.
+    const cacheIsFresh =
+      fireRecords.length > 0 &&
+      Date.now() - firmsLastRefresh < FIRMS_REFRESH_MS;
+
+    if (!forceRefresh && cacheIsFresh) {
+      renderFireLayer();
+      updateFirmsLegend();
+      return;
+    }
+
     if (firmsLoading) return;
+
     firmsLoading = true;
+    const requestId = ++firmsLoadSerial;
+
+    const sources = [
+      'VIIRS_NOAA20_NRT',
+      'VIIRS_NOAA21_NRT',
+      'VIIRS_SNPP_NRT',
+      'MODIS_NRT'
+    ];
+
+    const collectedRows = [];
+    const failedSources = [];
+    let completed = 0;
+    let successful = 0;
+
+    notice.textContent = 'FIRMS : chargement progressif des foyers…';
+    notice.style.display = 'block';
 
     try {
-      // Chaque source correspond à un flux FIRMS distinct.
-      // Les trois flux VIIRS offrent la meilleure résolution spatiale.
-      // MODIS_NRT ajoute les passages Terra et Aqua, plus grossiers mais utiles
-      // pour compléter la couverture temporelle.
-      const sources = [
-        'VIIRS_NOAA20_NRT',
-        'VIIRS_NOAA21_NRT',
-        'VIIRS_SNPP_NRT',
-        'MODIS_NRT'
-      ];
+      const tasks = sources.map(source =>
+        fetchFirmsSource(source)
+          .then(rows => {
+            if (
+              requestId !== firmsLoadSerial ||
+              !firesInput.checked
+            ) return;
 
-      // FIRMS renvoie trois jours calendaires UTC. La fenêtre glissante
-      // exacte de 48 heures est appliquée plus bas dans le navigateur.
-      const results = await Promise.allSettled(
-        sources.map(async source => {
-          const url =
-            OPENAQ_PROXY +
-            '/firms/' +
-            source +
-            '/' +
-            FIRMS_BBOX +
-            '/3';
+            collectedRows.push(...rows);
+            successful++;
 
-          const resp = await fetch(url, { cache: 'no-store' });
+            // Affichage dès qu'un flux est disponible, sans attendre le plus lent.
+            fireRecords = buildFireRecords(collectedRows);
+            const visibleCount = renderFireLayer();
+            updateFirmsLegend();
 
-          if (!resp.ok) {
-            throw new Error(source + ' : HTTP ' + resp.status);
-          }
-
-          console.info(
-            'FIRMS',
-            source,
-            'cache =',
-            resp.headers.get('X-Proxy-Cache') || '?',
-            'NASA interrogée à',
-            resp.headers.get('X-Upstream-Fetched-At') || '?'
-          );
-
-          const rows = parseCsv(await resp.text()).map(row => ({
-            ...row,
-            _firmsSource: source
-          }));
-
-          console.info(
-            'FIRMS',
-            source,
-            ':',
-            rows.length,
-            'détections brutes reçues'
-          );
-
-          return rows;
-        })
+            notice.textContent =
+              'FIRMS : ' +
+              successful + '/' + sources.length +
+              ' flux reçus — ' + visibleCount +
+              ' détections affichées.';
+            notice.style.display = 'block';
+          })
+          .catch(error => {
+            failedSources.push(source);
+            console.warn('FIRMS : source indisponible', source, error);
+          })
+          .finally(() => {
+            completed++;
+          })
       );
 
-      const all = [];
-      const failedSources = [];
+      await Promise.all(tasks);
 
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          all.push(...result.value);
-        } else {
-          failedSources.push(sources[index]);
-          console.warn(
-            'FIRMS : source indisponible',
-            sources[index],
-            result.reason
-          );
-        }
-      });
+      if (requestId !== firmsLoadSerial || !firesInput.checked) return;
 
-      // Ne pas effacer la dernière couche valide si toutes les sources échouent.
-      if (failedSources.length === sources.length) {
+      if (successful === 0) {
         throw new Error('Toutes les sources FIRMS ont échoué.');
       }
 
-      const nextFireRecords = [];
+      firmsLastRefresh = Date.now();
 
-      all.forEach(row => {
-        const lat = parseFloat(row.latitude);
-        const lon = parseFloat(row.longitude);
+      logLiveFireSummary();
 
-        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-
-        const age = fireAgeHours(row);
-
-        // Vraie fenêtre glissante de 48 heures.
-        if (!Number.isFinite(age) || age < -0.5 || age > 48) return;
-
-        const frp = parseFloat(row.frp) || 0;
-        const ageBin = getFireAgeBin(age);
-        if (!ageBin) return;
-
-        const popup =
-          '<b>Foyer détecté</b><br>' +
-          row.acq_date +
-          ' ' +
-          (row.acq_time || '')
-            .padStart(4, '0')
-            .replace(/(..)(..)/, '$1h$2 UTC') +
-          '<br>Âge : ' + age.toFixed(1) + ' h' +
-          '<br>Classe temporelle : ' + ageBin.label +
-          '<br>Satellite : ' + (row.satellite || '?') +
-          '<br>Instrument : ' + (row.instrument || '?') +
-          '<br>Flux FIRMS : ' + (row._firmsSource || '?') +
-          '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
-          '<br>Confiance : ' + formatFireConfidence(row);
-
-        nextFireRecords.push({
-          lat,
-          lon,
-          age,
-          ageBin: ageBin.id,
-          color: ageBin.color,
-          frp,
-          popup
-        });
-
-      });
-
-      // La case peut avoir été décochée pendant le téléchargement.
-      if (!firesInput.checked) return;
-
-      fireRecords = nextFireRecords;
       const displayedCount = renderFireLayer();
       updateFirmsLegend();
-      firmsLastRefresh = Date.now();
 
       console.info(
         'FIRMS :',
         displayedCount,
         'détections affichées sur les dernières 48 h ;',
-        all.length,
+        collectedRows.length,
         'enregistrements bruts reçus ; actualisation',
         new Date(firmsLastRefresh).toLocaleString('fr-FR')
       );
 
-      if (failedSources.length) {
-        console.warn(
-          'FIRMS : carte partielle, sources absentes :',
-          failedSources.join(', ')
-        );
-      }
+      notice.textContent = failedSources.length
+        ? 'FIRMS : affichage partiel (' +
+          successful + '/' + sources.length + ' flux disponibles).'
+        : 'FIRMS : ' + displayedCount +
+          ' détections affichées sur les dernières 48 h.';
+      notice.style.display = 'block';
+      setTimeout(() => {
+        if (requestId === firmsLoadSerial) notice.style.display = 'none';
+      }, 4000);
 
       if (fireRecords.length === 0) {
         notice.textContent =
           'Aucun foyer MODIS ou VIIRS détecté sur la zone durant les dernières 48 h.';
         notice.style.display = 'block';
-        setTimeout(() => {
-          notice.style.display = 'none';
-        }, 6000);
       }
     } catch (err) {
       console.error('FIRMS :', err);
@@ -1312,7 +1946,7 @@
         notice.style.display = 'none';
       }, 8000);
     } finally {
-      firmsLoading = false;
+      if (requestId === firmsLoadSerial) firmsLoading = false;
     }
   }
 
@@ -1542,7 +2176,7 @@
       !document.hidden &&
       document.getElementById('fires').checked
     ) {
-      loadFirms();
+      loadFirms(true);
     }
   }, FIRMS_REFRESH_MS);
 
@@ -1555,7 +2189,7 @@
       document.getElementById('fires').checked &&
       elapsed > 5 * 60 * 1000
     ) {
-      loadFirms();
+      loadFirms(true);
     }
   });
 
@@ -1944,40 +2578,75 @@
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
-      opacity: 0.82,
+      opacity: 0.42,
       pane: 'over',
       updateWhenIdle: true,
       updateWhenZooming: false,
-      tileSize: 512,
-      keepBuffer: 0,
+      tileSize: 256,
+      keepBuffer: 1,
       noWrap: true,
       bounds: EFFIS_BOUNDS,
       TIME: start + '/' + selected,
       attribution: 'EFFIS © UE, Copernicus EMS'
-    }).addTo(map);
+    });
 
-    notice.textContent =
-      'EFFIS : périmètres stabilisés du ' +
-      formatDateFr(start) + ' au ' + formatDateFr(selected) + '.';
-    notice.style.display = 'block';
-    setTimeout(() => { notice.style.display = 'none'; }, 5000);
+    let effisTilesLoaded = 0;
+    let effisTileErrors = 0;
+
+    burntLayer.on('loading', () => {
+      notice.textContent =
+        'EFFIS : chargement des périmètres stabilisés…';
+      notice.style.display = 'block';
+    });
+
+    burntLayer.on('tileload', () => {
+      effisTilesLoaded++;
+    });
+
+    burntLayer.on('tileerror', () => {
+      effisTileErrors++;
+    });
+
+    burntLayer.on('load', () => {
+      notice.textContent =
+        'EFFIS : périmètres du ' +
+        formatDateFr(start) + ' au ' + formatDateFr(selected) +
+        (effisTileErrors > 0
+          ? ' — certaines tuiles sont indisponibles.'
+          : '.');
+      notice.style.display = 'block';
+      setTimeout(() => { notice.style.display = 'none'; }, 4000);
+    });
+
+    burntLayer.addTo(map);
+
+    // Message de secours si le serveur ne répond pas du tout.
+    setTimeout(() => {
+      if (burntLayer && effisTilesLoaded === 0) {
+        notice.textContent =
+          'EFFIS répond lentement ou ne renvoie aucune tuile pour cette période.';
+        notice.style.display = 'block';
+      }
+    }, 9000);
   }
 
   document.getElementById('burnt').addEventListener('change', loadBurntLayer);
 
-  // ==== Emprises cumulées des détections actives FIRMS ====
-  // Chaque limite représente l'union des empreintes de pixels de feu actif
-  // retenues jusqu'à un passage satellitaire donné. Il ne s'agit ni d'un
-  // périmètre brûlé, ni d'un front continu, ni d'un temps d'arrivée interpolé.
+  // ==== Emprises cumulées FIRMS (calcul hors-ligne) ====
+  // Les limites sont dérivées des détections actives soutenues. Elles ne sont
+  // ni une surface brûlée, ni un front continu, ni un temps d'arrivée.
   map.createPane('isochrones');
   map.getPane('isochrones').style.zIndex = 635;
+  map.getPane('isochrones').style.pointerEvents = 'auto';
 
   let isochronesLayer = null;
   let isochronesData = null;
   let isochroneLevels = [];
-  let latestSnapshotByCluster = new Map();
+  let latestEnvelopeFeatures = [];
   let isochroneSearchBbox = null;
   let arrivalMarker = null;
+  let arrivalTargetMarker = null;
+  let arrivalLine = null;
 
   const isoLegend = document.getElementById('isochrones-legend');
   const addressInput = document.getElementById('address-input');
@@ -2013,67 +2682,133 @@
     return 'rgb(' + c.join(',') + ')';
   }
 
-  function isoColor(hoursAgo, minHoursAgo, maxHoursAgo) {
-    const range = Math.max(maxHoursAgo - minHoursAgo, 0.001);
-    const recentness = (maxHoursAgo - hoursAgo) / range;
-
-    if (recentness <= 0.58) {
-      return interpolateRgb([255, 232, 46], [255, 100, 31], recentness / 0.58);
+  function envelopeColor(progress) {
+    if (progress <= 0.55) {
+      return interpolateRgb([255, 211, 94], [255, 126, 43], progress / 0.55);
     }
 
     return interpolateRgb(
-      [255, 100, 31],
+      [255, 126, 43],
       [215, 25, 28],
-      (recentness - 0.58) / 0.42
+      (progress - 0.55) / 0.45
     );
   }
 
-  function collectCoordinatePairs(value, output) {
-    if (!Array.isArray(value)) return;
+  function geometryLines(geometry) {
+    if (!geometry) return [];
 
-    if (
-      value.length >= 2 &&
-      Number.isFinite(Number(value[0])) &&
-      Number.isFinite(Number(value[1]))
-    ) {
-      output.push([Number(value[0]), Number(value[1])]);
-      return;
+    if (geometry.type === 'LineString') {
+      return [geometry.coordinates];
     }
 
-    value.forEach(child => collectCoordinatePairs(child, output));
+    if (geometry.type === 'MultiLineString') {
+      return geometry.coordinates;
+    }
+
+    return [];
+  }
+
+  function isClosedLine(coords) {
+    if (!coords || coords.length < 4) return false;
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    return Math.abs(Number(first[0]) - Number(last[0])) < 1e-8 &&
+      Math.abs(Number(first[1]) - Number(last[1])) < 1e-8;
+  }
+
+  // Lissage visuel de Chaikin. Les coordonnées originales restent utilisées
+  // pour les distances afin de ne pas déplacer la limite scientifique calculée.
+  function smoothLineCoordinates(coords, iterations = 1) {
+    if (!Array.isArray(coords) || coords.length < 4) return coords;
+
+    const closed = isClosedLine(coords);
+    let current = coords.map(c => [Number(c[0]), Number(c[1])]);
+
+    if (closed) current = current.slice(0, -1);
+
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      const next = [];
+      const count = current.length;
+
+      for (let i = 0; i < count - (closed ? 0 : 1); i++) {
+        const a = current[i];
+        const b = current[(i + 1) % count];
+
+        next.push([
+          0.75 * a[0] + 0.25 * b[0],
+          0.75 * a[1] + 0.25 * b[1]
+        ]);
+        next.push([
+          0.25 * a[0] + 0.75 * b[0],
+          0.25 * a[1] + 0.75 * b[1]
+        ]);
+      }
+
+      if (!closed) {
+        next.unshift(current[0]);
+        next.push(current[current.length - 1]);
+      }
+
+      current = next;
+    }
+
+    if (closed && current.length) current.push([...current[0]]);
+    return current;
+  }
+
+  function createDisplayEnvelopeData(data) {
+    return {
+      ...data,
+      features: (data.features || []).map(feature => {
+        const geometry = feature.geometry || {};
+
+        if (geometry.type === 'LineString') {
+          return {
+            ...feature,
+            geometry: {
+              ...geometry,
+              coordinates: smoothLineCoordinates(geometry.coordinates, 1)
+            }
+          };
+        }
+
+        if (geometry.type === 'MultiLineString') {
+          return {
+            ...feature,
+            geometry: {
+              ...geometry,
+              coordinates: geometry.coordinates.map(line =>
+                smoothLineCoordinates(line, 1)
+              )
+            }
+          };
+        }
+
+        return feature;
+      })
+    };
   }
 
   function getIsoBbox(data) {
-    if (
-      Array.isArray(data.bbox) &&
-      data.bbox.length === 4 &&
-      data.bbox.every(value => Number.isFinite(Number(value)))
-    ) {
+    if (Array.isArray(data.bbox) && data.bbox.length === 4) {
       return data.bbox.map(Number);
     }
 
     const coords = [];
 
     (data.features || []).forEach(feature => {
-      const geometry = feature.geometry || {};
-
-      if (
-        geometry.type === 'LineString' ||
-        geometry.type === 'MultiLineString'
-      ) {
-        collectCoordinatePairs(geometry.coordinates, coords);
-      }
+      geometryLines(feature.geometry).forEach(line => {
+        coords.push(...line);
+      });
     });
 
-    if (!coords.length) {
-      throw new Error('Emprises FIRMS sans coordonnées.');
-    }
+    if (!coords.length) throw new Error('Emprises sans coordonnées.');
 
     return [
-      Math.min(...coords.map(coord => coord[0])),
-      Math.min(...coords.map(coord => coord[1])),
-      Math.max(...coords.map(coord => coord[0])),
-      Math.max(...coords.map(coord => coord[1]))
+      Math.min(...coords.map(c => Number(c[0]))),
+      Math.min(...coords.map(c => Number(c[1]))),
+      Math.max(...coords.map(c => Number(c[0]))),
+      Math.max(...coords.map(c => Number(c[1])))
     ];
   }
 
@@ -2106,50 +2841,61 @@
 
   function prepareIsochrones(data) {
     const valid = (data.features || []).filter(feature => {
-      const geometry = feature && feature.geometry;
-      const properties = feature && feature.properties || {};
+      const p = feature && feature.properties || {};
+      const lines = feature && geometryLines(feature.geometry);
 
-      return geometry &&
-        (
-          geometry.type === 'LineString' ||
-          geometry.type === 'MultiLineString'
-        ) &&
-        Array.isArray(geometry.coordinates) &&
-        Number.isFinite(Number(properties.cluster_id)) &&
-        Number.isFinite(Number(properties.snapshot_index)) &&
-        Number.isFinite(Number(properties.hours_ago)) &&
-        Boolean(
-          properties.observed_until_utc ||
-          properties.estimated_time_utc
-        );
+      return feature &&
+        lines &&
+        lines.some(line => Array.isArray(line) && line.length >= 2) &&
+        Number.isFinite(Number(p.cluster_id)) &&
+        Number.isFinite(Number(p.snapshot_index)) &&
+        Boolean(p.observed_until_utc);
     });
 
-    if (!valid.length) {
-      throw new Error('Aucune emprise cumulative FIRMS valide.');
-    }
+    if (!valid.length) throw new Error('Aucune emprise FIRMS valide.');
 
     data.features = valid;
-    latestSnapshotByCluster = new Map();
 
-    isochroneLevels = valid.map(feature => {
-      const properties = feature.properties || {};
-      const clusterId = Number(properties.cluster_id);
-      const snapshotIndex = Number(properties.snapshot_index);
-      const currentLatest = latestSnapshotByCluster.get(clusterId);
+    const byCluster = new Map();
 
-      if (!Number.isFinite(currentLatest) || snapshotIndex > currentLatest) {
-        latestSnapshotByCluster.set(clusterId, snapshotIndex);
-      }
+    valid.forEach(feature => {
+      const p = feature.properties || {};
+      const clusterId = Number(p.cluster_id);
+      const snapshotIndex = Number(p.snapshot_index);
 
-      return {
+      if (!byCluster.has(clusterId)) byCluster.set(clusterId, []);
+      byCluster.get(clusterId).push(feature);
+    });
+
+    isochroneLevels = [];
+    latestEnvelopeFeatures = [];
+
+    byCluster.forEach((features, clusterId) => {
+      features.sort((a, b) =>
+        Number(a.properties.snapshot_index) -
+        Number(b.properties.snapshot_index)
+      );
+
+      const maxSnapshot = Math.max(
+        ...features.map(feature => Number(feature.properties.snapshot_index))
+      );
+
+      features.forEach(feature => {
+        feature.properties._display_progress =
+          maxSnapshot > 1
+            ? (Number(feature.properties.snapshot_index) - 1) / (maxSnapshot - 1)
+            : 1;
+        feature.properties._is_latest =
+          Number(feature.properties.snapshot_index) === maxSnapshot;
+      });
+
+      latestEnvelopeFeatures.push(features[features.length - 1]);
+      isochroneLevels.push({
         cluster_id: clusterId,
-        snapshot_index: snapshotIndex,
-        hours_ago: Number(properties.hours_ago),
-        observed_until_utc:
-          properties.observed_until_utc ||
-          properties.estimated_time_utc
-      };
-    }).sort((left, right) => right.hours_ago - left.hours_ago);
+        features,
+        max_snapshot: maxSnapshot
+      });
+    });
 
     isochroneSearchBbox = expandBboxKm(
       getIsoBbox(data),
@@ -2157,20 +2903,38 @@
     );
   }
 
+  function formatObservationDate(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return String(dateValue || 'date inconnue');
+
+    return new Intl.DateTimeFormat('fr-FR', {
+      timeZone: 'Europe/Paris',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  }
+
   function renderIsoLegend() {
-    if (!isoLegend || !isochroneLevels.length) return;
+    if (!isoLegend || !latestEnvelopeFeatures.length) return;
+
+    const dates = latestEnvelopeFeatures
+      .map(feature => feature.properties.observed_until_utc)
+      .filter(Boolean)
+      .map(formatObservationDate);
 
     isoLegend.innerHTML =
       '<b>Emprises cumulées détectées</b>' +
       '<div class="iso-grad"></div>' +
       '<div class="iso-scale">' +
-        '<span>premières observations</span>' +
-        '<span>dernières observations</span>' +
+        '<span>anciennes</span>' +
+        '<span>dernière limite</span>' +
       '</div>' +
       '<small class="iso-note">' +
-        'Jaune → rouge : extension cumulative des empreintes de pixels de feu actif FIRMS. ' +
-        'Les limites rouges correspondent aux observations les plus récentes. ' +
-        'Ce ne sont ni des surfaces brûlées ni des fronts continus.' +
+        'Les étapes anciennes sont estompées ; la dernière limite est renforcée. ' +
+        (dates.length ? 'Dernières observations : ' + dates.join(' · ') + '. ' : '') +
+        'Ce produit n’est ni une surface brûlée ni un front continu.' +
       '</small>';
 
     requestAnimationFrame(updateMapLegendLayout);
@@ -2178,85 +2942,50 @@
 
   async function ensureIsochronesLoaded(addToMap) {
     if (!isochronesData) {
-      const response = await fetch(
-        'detection_envelopes.geojson',
-        { cache: 'no-store' }
-      );
-
-      if (!response.ok) {
-        throw new Error('HTTP ' + response.status);
-      }
-
+      const response = await fetch('detection_envelopes.geojson', {
+        cache: 'no-store'
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       isochronesData = await response.json();
       prepareIsochrones(isochronesData);
     }
 
     if (!isochronesLayer) {
-      const hours = isochroneLevels
-        .map(level => level.hours_ago)
-        .filter(Number.isFinite);
+      const displayData = createDisplayEnvelopeData(isochronesData);
 
-      const oldest = Math.max(...hours);
-      const newest = Math.min(...hours);
-
-      isochronesLayer = L.geoJSON(isochronesData, {
+      isochronesLayer = L.geoJSON(displayData, {
         pane: 'isochrones',
-
+        smoothFactor: 1.7,
         style: feature => {
-          const properties = feature.properties || {};
-          const clusterId = Number(properties.cluster_id);
-          const snapshotIndex = Number(properties.snapshot_index);
-          const isLatest =
-            latestSnapshotByCluster.get(clusterId) === snapshotIndex;
+          const p = feature.properties || {};
+          const progress = Number(p._display_progress) || 0;
+          const latest = Boolean(p._is_latest);
 
           return {
-            color: isoColor(Number(properties.hours_ago), newest, oldest),
-            weight: isLatest ? 3.8 : 2.0,
-            opacity: isLatest ? 1 : 0.48,
+            color: latest ? '#d7191c' : envelopeColor(progress),
+            weight: latest ? 3.0 : 1.0 + 0.8 * progress,
+            opacity: latest ? 0.95 : 0.16 + 0.34 * progress,
+            dashArray: latest ? null : '2 6',
             lineCap: 'round',
-            lineJoin: 'round'
+            lineJoin: 'round',
+            interactive: true
           };
         },
-
         onEachFeature: (feature, layer) => {
-          const properties = feature.properties || {};
-          const clusterId = Number(properties.cluster_id);
-          const snapshotIndex = Number(properties.snapshot_index);
-          const timeText =
-            properties.observed_until_utc ||
-            properties.estimated_time_utc ||
-            '';
-          const parsedTime = timeText ? new Date(timeText) : null;
-          const timeLine =
-            parsedTime && !Number.isNaN(parsedTime.getTime())
-              ? 'Détections cumulées jusqu’au ' +
-                escapeHtml(formatArrivalDate(parsedTime)) + '<br>'
-              : '';
-          const detections = Number(properties.supported_detections_cumulative);
-          const detectionLine = Number.isFinite(detections)
-            ? 'Détections soutenues cumulées : ' + Math.round(detections) + '<br>'
-            : '';
-          const area = Number(properties.detected_area_km2);
-          const areaLine = Number.isFinite(area)
-            ? 'Surface géométrique des empreintes retenues : ' +
-              area.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) +
-              ' km²<br>'
-            : '';
-          const isLatest =
-            latestSnapshotByCluster.get(clusterId) === snapshotIndex;
+          const p = feature.properties || {};
+          const latest = Boolean(p._is_latest);
+          const date = formatObservationDate(p.observed_until_utc);
+          const count = Number(p.supported_detections_cumulative);
 
-          layer.bindPopup(
-            '<b>Emprise cumulative détectée' +
-              (isLatest ? ' — dernière observation' : '') +
-            '</b><br>' +
-            (Number.isFinite(clusterId) ? 'Incendie ' + clusterId + '<br>' : '') +
-            timeLine +
-            detectionLine +
-            areaLine +
-            '<small>' +
-              'Union géométrique d’empreintes de pixels de feu actif FIRMS. ' +
-              'Cette surface n’est pas une surface brûlée et sa limite n’est pas un front de feu.' +
-            '</small>'
+          layer.bindTooltip(
+            (latest ? '<b>Dernière limite détectée</b>' : '<b>Étape cumulative</b>') +
+            '<br>Incendie ' + escapeHtml(p.cluster_id) +
+            '<br>Observations jusqu’au ' + escapeHtml(date) +
+            (Number.isFinite(count)
+              ? '<br>' + count.toLocaleString('fr-FR') + ' détections soutenues cumulées'
+              : '') +
+            '<br><small>Ni surface brûlée ni front continu.</small>',
+            { sticky: true, opacity: 0.96 }
           );
         }
       });
@@ -2285,7 +3014,7 @@
 
     if (isoLegend) isoLegend.style.display = '';
 
-    notice.textContent = 'Chargement des emprises cumulées FIRMS…';
+    notice.textContent = 'Chargement des emprises FIRMS…';
     notice.style.display = 'block';
 
     try {
@@ -2295,7 +3024,7 @@
     } catch (error) {
       console.error('Emprises FIRMS :', error);
       notice.textContent =
-        'Emprises cumulées indisponibles (detection_envelopes.geojson absent ou invalide).';
+        'Emprises FIRMS indisponibles (detection_envelopes.geojson absent ou invalide).';
       notice.style.display = 'block';
       setTimeout(() => { notice.style.display = 'none'; }, 8000);
       document.getElementById('isochrones').checked = false;
@@ -2303,10 +3032,797 @@
     }
   }
 
-  document.getElementById('isochrones').addEventListener('change', toggleIsochrones);
   window.addEventListener('resize', updateMapLegendLayout);
 
-  // ---- Distance entre une adresse et les dernières emprises détectées ----
+
+  // ==== Reconstitution temporelle FIRMS ====
+
+  map.createPane('fireprogress');
+  map.getPane('fireprogress').style.zIndex = 637;
+  map.getPane('fireprogress').style.pointerEvents = 'auto';
+
+  const FIRE_PROGRESSION_GEOJSON =
+    'data/fire-progression/fire_progression_arrival_v1.geojson';
+
+  const FIRE_PROGRESSION_MANIFEST =
+    'data/fire-progression/fire_progression_arrival_v1_manifest.json';
+
+  let fireProgressionData = null;
+  let fireProgressionManifest = null;
+  let fireProgressionLayer = null;
+
+
+  const activeProgressionAgeBins = new Set();
+
+  const PROGRESSION_AGE_BINS = [
+    {
+      id: 'h00_08',
+      min: 0,
+      max: 8,
+      label: '0–8 h',
+      color: '#d7191c'
+    },
+    {
+      id: 'h08_16',
+      min: 8,
+      max: 16,
+      label: '8–16 h',
+      color: '#f03b20'
+    },
+    {
+      id: 'h16_24',
+      min: 16,
+      max: 24,
+      label: '16–24 h',
+      color: '#fd8d3c'
+    },
+    {
+      id: 'h24_32',
+      min: 24,
+      max: 32,
+      label: '24–32 h',
+      color: '#feb24c'
+    },
+    {
+      id: 'h32_40',
+      min: 32,
+      max: 40,
+      label: '32–40 h',
+      color: '#fed976'
+    },
+    {
+      id: 'h40_plus',
+      min: 40,
+      max: Infinity,
+      label: '40 h et plus',
+      color: '#fff7bc'
+    }
+  ];
+
+  const fireProgressionAgeBins =
+    document.getElementById(
+      'fire-progression-age-bins'
+    );
+
+  const fireProgressionInput =
+    document.getElementById('fire-progression');
+
+  const fireProgressionControls =
+    document.getElementById('fire-progression-controls');
+
+
+  const fireProgressionPanel =
+    document.getElementById(
+      'fire-progression-map-panel'
+    );
+
+  const fireProgressionSlider =
+    document.getElementById('fire-progression-slider');
+
+  const fireProgressionStatus =
+    document.getElementById('fire-progression-status');
+
+  function getProgressionAgeBin(ageHours) {
+    return PROGRESSION_AGE_BINS.find(
+      bin =>
+        ageHours >= bin.min &&
+        ageHours < bin.max
+    ) || PROGRESSION_AGE_BINS[
+      PROGRESSION_AGE_BINS.length - 1
+    ];
+  }
+
+  function updateProgressionAgeBins(areaByBin) {
+    if (!fireProgressionAgeBins) return;
+
+    const totalArea =
+      Object.values(areaByBin).reduce(
+        (sum, area) => sum + area,
+        0
+      );
+
+    const rows = [
+      {
+        id: 'all',
+        label: 'Toutes les périodes',
+        color:
+          'linear-gradient(90deg,' +
+          '#d7191c,#fd8d3c,#fff7bc)',
+        area: totalArea
+      },
+      ...PROGRESSION_AGE_BINS.map(
+        bin => ({
+          ...bin,
+          area: areaByBin[bin.id] || 0
+        })
+      )
+    ];
+
+    fireProgressionAgeBins.innerHTML = '';
+
+    rows.forEach(row => {
+      const button =
+        document.createElement('button');
+
+      button.type = 'button';
+
+      button.className =
+        'fire-progression-age-bin' +
+        (
+          (
+            row.id === 'all'
+              ? activeProgressionAgeBins.size === 0
+              : activeProgressionAgeBins.has(row.id)
+          )
+            ? ' is-active'
+            : ''
+        ) +
+        (
+          row.area <= 0
+            ? ' is-empty'
+            : ''
+        );
+
+      const swatch =
+        document.createElement('span');
+
+      swatch.className =
+        'fire-progression-age-swatch';
+
+      swatch.style.background =
+        row.color;
+
+      const label =
+        document.createElement('span');
+
+      label.textContent =
+        row.label;
+
+      const value =
+        document.createElement('span');
+
+      value.className =
+        'fire-progression-age-value';
+
+      value.textContent =
+        row.area.toLocaleString(
+          'fr-FR',
+          {
+            maximumFractionDigits: 1
+          }
+        ) + ' km²';
+
+      button.append(
+        swatch,
+        label,
+        value
+      );
+
+      if (row.area > 0) {
+        button.addEventListener(
+          'click',
+          () => {
+            if (row.id === 'all') {
+              activeProgressionAgeBins.clear();
+            } else if (
+              activeProgressionAgeBins.has(row.id)
+            ) {
+              activeProgressionAgeBins.delete(row.id);
+            } else {
+              activeProgressionAgeBins.add(row.id);
+            }
+
+            document.getElementById(
+              'fire-progression-arrival'
+            ).checked = true;
+
+            renderFireProgressionSnapshot(
+              Number(
+                fireProgressionSlider.value
+              )
+            );
+          }
+        );
+      }
+
+      fireProgressionAgeBins.appendChild(
+        button
+      );
+    });
+  }
+
+  function fireProgressionStyle(feature) {
+    const properties = feature.properties || {};
+    const category = properties.category;
+
+    if (category === 'arrival_step') {
+      const color =
+        properties._age_color ||
+        '#fff7bc';
+
+      return {
+        color,
+        weight: 0.65,
+        opacity: 0.55,
+        fillColor: color,
+        fillOpacity: 0.72
+      };
+    }
+
+    if (category === 'historical_support') {
+      const progress = Math.max(
+        0,
+        Math.min(
+          1,
+          Number(properties._isoline_progress) || 0
+        )
+      );
+
+      return {
+        color: '#423b35',
+        weight: 0.8 + 1.1 * progress,
+        opacity: 0.20 + 0.58 * progress,
+        fillOpacity: 0,
+        dashArray: progress > 0.95
+          ? null
+          : '3 6'
+      };
+    }
+
+    if (category === 'observed_front') {
+      return {
+        color: '#8b101c',
+        weight: 2.2,
+        opacity: 0.95,
+        fillColor: '#e3292f',
+        fillOpacity: 0.72
+      };
+    }
+
+    if (category === 'plausible_front_1h') {
+      return {
+        color: '#c5162e',
+        weight: 2.6,
+        opacity: 0.95,
+        dashArray: '8 6',
+        fillOpacity: 0
+      };
+    }
+
+    return {
+      color: '#ffffff',
+      weight: 1,
+      opacity: 0.4,
+      fillOpacity: 0
+    };
+  }
+
+  function progressionDateLabel(snapshot) {
+    const date = new Date(
+      snapshot.dt_local ||
+      snapshot.dt_utc
+    );
+
+    if (Number.isNaN(date.getTime())) {
+      return snapshot.dt_utc || 'Date inconnue';
+    }
+
+    return date.toLocaleString(
+      'fr-FR',
+      {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }
+    );
+  }
+
+  function renderFireProgressionSnapshot(index) {
+    if (
+      !fireProgressionData ||
+      !fireProgressionManifest
+    ) {
+      return;
+    }
+
+    const snapshots =
+      fireProgressionManifest.snapshots || [];
+
+    const snapshot = snapshots[index];
+
+    if (!snapshot) return;
+
+    if (fireProgressionLayer) {
+      map.removeLayer(fireProgressionLayer);
+      fireProgressionLayer = null;
+    }
+
+    const snapshotIndex =
+      Number(snapshot.snapshot_index);
+
+    const showArrival =
+      document.getElementById(
+        'fire-progression-arrival'
+      ).checked;
+
+    const showIsolines =
+      document.getElementById(
+        'fire-progression-isolines'
+      ).checked;
+
+    const showObserved =
+      document.getElementById(
+        'fire-progression-observed'
+      ).checked;
+
+    const showProjection =
+      document.getElementById(
+        'fire-progression-projection'
+      ).checked;
+
+    const visibleFeatures = [];
+
+    const snapshotDate = new Date(
+      snapshot.pass_time_utc ||
+      snapshot.dt_local ||
+      snapshot.dt_utc
+    );
+
+    const areaByBin =
+      Object.fromEntries(
+        PROGRESSION_AGE_BINS.map(
+          bin => [bin.id, 0]
+        )
+      );
+
+    fireProgressionData.features.forEach(
+      sourceFeature => {
+        const properties =
+          sourceFeature.properties || {};
+
+        if (
+          properties.category
+          !== 'arrival_step'
+        ) {
+          return;
+        }
+
+        const arrivalIndex = Number(
+          properties.arrival_snapshot_index
+        );
+
+        if (
+          arrivalIndex < 1 ||
+          arrivalIndex > snapshotIndex
+        ) {
+          return;
+        }
+
+        const arrivalDate = new Date(
+          properties.first_detected_utc ||
+          properties.first_detected_local
+        );
+
+        if (
+          Number.isNaN(arrivalDate.getTime()) ||
+          Number.isNaN(snapshotDate.getTime())
+        ) {
+          return;
+        }
+
+        const ageHours = Math.max(
+          0,
+          (
+            snapshotDate.getTime() -
+            arrivalDate.getTime()
+          ) / 3600000
+        );
+
+        const ageBin =
+          getProgressionAgeBin(
+            ageHours
+          );
+
+        const areaKm2 =
+          Number(properties.area_km2) || 0;
+
+        areaByBin[ageBin.id] +=
+          areaKm2;
+
+        if (!showArrival) return;
+
+        if (
+          activeProgressionAgeBins.size > 0 &&
+          !activeProgressionAgeBins.has(ageBin.id)
+        ) {
+          return;
+        }
+
+        const feature = JSON.parse(
+          JSON.stringify(sourceFeature)
+        );
+
+        feature.properties._age_hours =
+          ageHours;
+
+        feature.properties._age_bin =
+          ageBin.id;
+
+        feature.properties._age_color =
+          ageBin.color;
+
+        visibleFeatures.push(feature);
+      }
+    );
+
+    updateProgressionAgeBins(
+      areaByBin
+    );
+
+    if (showIsolines) {
+      const maximumIsolines = 6;
+
+      const interval = Math.max(
+        1,
+        Math.ceil(
+          snapshotIndex / maximumIsolines
+        )
+      );
+
+      fireProgressionData.features.forEach(
+        sourceFeature => {
+          const properties =
+            sourceFeature.properties || {};
+
+          if (
+            properties.category
+            !== 'historical_support'
+          ) {
+            return;
+          }
+
+          const featureIndex = Number(
+            properties.snapshot_index
+          );
+
+          const selected = (
+            featureIndex <= snapshotIndex &&
+            (
+              featureIndex === snapshotIndex ||
+              featureIndex === 1 ||
+              featureIndex % interval === 0
+            )
+          );
+
+          if (!selected) return;
+
+          const feature = JSON.parse(
+            JSON.stringify(sourceFeature)
+          );
+
+          feature.properties._isoline_progress =
+            snapshotIndex > 1
+              ? (
+                  featureIndex - 1
+                ) / (
+                  snapshotIndex - 1
+                )
+              : 1;
+
+          visibleFeatures.push(feature);
+        }
+      );
+    }
+
+    fireProgressionData.features.forEach(
+      sourceFeature => {
+        const properties =
+          sourceFeature.properties || {};
+
+        const featureIndex = Number(
+          properties.snapshot_index
+        );
+
+        if (featureIndex !== snapshotIndex) {
+          return;
+        }
+
+        if (
+          showObserved &&
+          properties.category
+          === 'observed_front'
+        ) {
+          visibleFeatures.push(sourceFeature);
+        }
+
+        if (
+          showProjection &&
+          properties.category
+          === 'plausible_front_1h'
+        ) {
+          visibleFeatures.push(sourceFeature);
+        }
+      }
+    );
+
+    fireProgressionLayer = L.geoJSON(
+      {
+        type: 'FeatureCollection',
+        features: visibleFeatures
+      },
+      {
+        pane: 'fireprogress',
+        style: fireProgressionStyle,
+
+        onEachFeature: (feature, layer) => {
+          const properties =
+            feature.properties || {};
+
+          const area = Number(
+            properties.area_km2
+          );
+
+          let featureDate = {
+            dt_local: properties.dt_local,
+            dt_utc: (
+              properties.pass_time_utc ||
+              properties.dt_utc
+            )
+          };
+
+          if (
+            properties.category
+            === 'arrival_step'
+          ) {
+            featureDate = {
+              dt_local:
+                properties.first_detected_local,
+              dt_utc:
+                properties.first_detected_utc
+            };
+          }
+
+          layer.bindTooltip(
+            '<b>' +
+            escapeHtml(
+              (
+                properties.category === 'observed_front'
+                  ? 'Détections actives du passage'
+                  : properties.label
+              ) ||
+              properties.category ||
+              'Évolution FIRMS'
+            ) +
+            '</b><br>' +
+            escapeHtml(
+              progressionDateLabel(featureDate)
+            ) +
+            (
+              Number.isFinite(area)
+                ? '<br>' +
+                  area.toLocaleString(
+                    'fr-FR',
+                    {
+                      maximumFractionDigits: 1
+                    }
+                  ) +
+                  ' km²'
+                : ''
+            ),
+            {
+              sticky: true,
+              opacity: 0.95
+            }
+          );
+        }
+      }
+    ).addTo(map);
+
+    fireProgressionStatus.innerHTML =
+      '<b>' +
+      escapeHtml(
+        progressionDateLabel(snapshot)
+      ) +
+      '</b> · étape ' +
+      (index + 1) +
+      '/' +
+      snapshots.length +
+      '<br>' +
+      'Sélectionnez une ou plusieurs tranches d’âge.' +
+      (
+        snapshot.projection_displayed
+          ? ''
+          : '<br><i>Projection non affichée : cohérence insuffisante.</i>'
+      );
+  }
+
+  async function ensureFireProgressionLoaded() {
+    if (
+      fireProgressionData &&
+      fireProgressionManifest
+    ) {
+      return;
+    }
+
+    const [geojsonResponse, manifestResponse] =
+      await Promise.all([
+        fetch(
+          FIRE_PROGRESSION_GEOJSON,
+          { cache: 'no-store' }
+        ),
+        fetch(
+          FIRE_PROGRESSION_MANIFEST,
+          { cache: 'no-store' }
+        )
+      ]);
+
+    if (!geojsonResponse.ok) {
+      throw new Error(
+        'GeoJSON HTTP ' +
+        geojsonResponse.status
+      );
+    }
+
+    if (!manifestResponse.ok) {
+      throw new Error(
+        'Manifest HTTP ' +
+        manifestResponse.status
+      );
+    }
+
+    fireProgressionData =
+      await geojsonResponse.json();
+
+    fireProgressionManifest =
+      await manifestResponse.json();
+
+    const snapshots =
+      fireProgressionManifest.snapshots || [];
+
+    if (!snapshots.length) {
+      throw new Error(
+        'Aucun snapshot temporel.'
+      );
+    }
+
+    fireProgressionSlider.min = '0';
+    fireProgressionSlider.max =
+      String(snapshots.length - 1);
+
+    fireProgressionSlider.value =
+      String(snapshots.length - 1);
+  }
+
+  async function toggleFireProgression() {
+    if (!fireProgressionInput.checked) {
+      fireProgressionControls.classList.remove(
+        'is-visible'
+      );
+
+
+      fireProgressionPanel.classList.remove(
+        'is-visible'
+      );
+
+      if (fireProgressionLayer) {
+        map.removeLayer(
+          fireProgressionLayer
+        );
+
+        fireProgressionLayer = null;
+      }
+
+      return;
+    }
+
+    if (layersPanel) {
+      layersPanel.open = false;
+    }
+
+    fireProgressionPanel.classList.add(
+      'is-visible'
+    );
+
+    fireProgressionPanel.open = true;
+
+    fireProgressionControls.classList.add(
+      'is-visible'
+    );
+
+    fireProgressionStatus.textContent =
+      'Chargement de la série temporelle…';
+
+    try {
+      await ensureFireProgressionLoaded();
+
+      renderFireProgressionSnapshot(
+        Number(
+          fireProgressionSlider.value
+        )
+      );
+    } catch (error) {
+      console.error(
+        'Évolution temporelle FIRMS :',
+        error
+      );
+
+      fireProgressionStatus.textContent =
+        'Série temporelle indisponible.';
+
+      fireProgressionInput.checked = false;
+
+      notice.textContent =
+        'Impossible de charger la reconstitution temporelle FIRMS.';
+
+      notice.style.display = 'block';
+
+      setTimeout(() => {
+        notice.style.display = 'none';
+      }, 7000);
+    }
+  }
+
+  fireProgressionInput.addEventListener(
+    'change',
+    toggleFireProgression
+  );
+
+  fireProgressionSlider.addEventListener(
+    'input',
+    () => {
+      renderFireProgressionSnapshot(
+        Number(
+          fireProgressionSlider.value
+        )
+      );
+    }
+  );
+
+
+  [
+    'fire-progression-arrival',
+    'fire-progression-isolines',
+    'fire-progression-observed',
+    'fire-progression-projection'
+  ].forEach(controlId => {
+    document.getElementById(
+      controlId
+    ).addEventListener(
+      'change',
+      () => {
+        if (fireProgressionInput.checked) {
+          renderFireProgressionSnapshot(
+            Number(
+              fireProgressionSlider.value
+            )
+          );
+        }
+      }
+    );
+  });
+
+  // ---- Projection locale du point sur chaque segment, en kilomètres ----
   function localXY(lon, lat, lat0) {
     return {
       x: lon * 111.320 * Math.cos(lat0 * Math.PI / 180),
@@ -2314,8 +3830,9 @@
     };
   }
 
-  function pointSegmentDistanceKm(lon, lat, a, b) {
+  function pointSegmentProjectionKm(lon, lat, a, b) {
     const lat0 = (lat + Number(a[1]) + Number(b[1])) / 3;
+    const cosLat = Math.max(Math.cos(lat0 * Math.PI / 180), 1e-8);
     const p = localXY(lon, lat, lat0);
     const p1 = localXY(Number(a[0]), Number(a[1]), lat0);
     const p2 = localXY(Number(b[0]), Number(b[1]), lat0);
@@ -2329,80 +3846,35 @@
     let t = denom > 0 ? (wx * vx + wy * vy) / denom : 0;
     t = Math.max(0, Math.min(1, t));
 
-    const dx = p.x - (p1.x + t * vx);
-    const dy = p.y - (p1.y + t * vy);
+    const projectedX = p1.x + t * vx;
+    const projectedY = p1.y + t * vy;
+    const dx = p.x - projectedX;
+    const dy = p.y - projectedY;
 
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  function geometryLines(feature) {
-    const geometry = feature && feature.geometry || {};
-
-    if (geometry.type === 'LineString') {
-      return [geometry.coordinates || []];
-    }
-
-    if (geometry.type === 'MultiLineString') {
-      return geometry.coordinates || [];
-    }
-
-    return [];
-  }
-
-  function isClosedRing(coords) {
-    if (!Array.isArray(coords) || coords.length < 4) return false;
-    const first = coords[0];
-    const last = coords[coords.length - 1];
-
-    return Math.abs(Number(first[0]) - Number(last[0])) < 1e-8 &&
-      Math.abs(Number(first[1]) - Number(last[1])) < 1e-8;
-  }
-
-  function pointInRing(lon, lat, coords) {
-    let inside = false;
-
-    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
-      const xi = Number(coords[i][0]);
-      const yi = Number(coords[i][1]);
-      const xj = Number(coords[j][0]);
-      const yj = Number(coords[j][1]);
-
-      const intersects =
-        (yi > lat) !== (yj > lat) &&
-        lon < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-15) + xi;
-
-      if (intersects) inside = !inside;
-    }
-
-    return inside;
-  }
-
-  function pointInsideFeature(lon, lat, feature) {
-    let inside = false;
-
-    geometryLines(feature).forEach(coords => {
-      if (isClosedRing(coords) && pointInRing(lon, lat, coords)) {
-        // Règle pair-impair : une éventuelle limite de trou inverse à nouveau l'état.
-        inside = !inside;
-      }
-    });
-
-    return inside;
+    return {
+      distance_km: Math.sqrt(dx * dx + dy * dy),
+      nearest_point: [
+        projectedX / (111.320 * cosLat),
+        projectedY / 110.574
+      ]
+    };
   }
 
   function distanceToFeatureKm(lon, lat, feature) {
-    let best = Infinity;
+    let best = null;
 
-    geometryLines(feature).forEach(coords => {
+    geometryLines(feature.geometry).forEach(coords => {
       for (let i = 1; i < coords.length; i++) {
-        const distance = pointSegmentDistanceKm(
+        const candidate = pointSegmentProjectionKm(
           lon,
           lat,
           coords[i - 1],
           coords[i]
         );
 
-        if (distance < best) best = distance;
+        if (!best || candidate.distance_km < best.distance_km) {
+          best = candidate;
+        }
       }
     });
 
@@ -2410,89 +3882,56 @@
   }
 
   function locateAddressRelativeToIsochrones(lon, lat) {
-    const latestByCluster = new Map();
-
-    (isochronesData.features || []).forEach(feature => {
-      const properties = feature.properties || {};
-      const clusterId = Number(properties.cluster_id);
-      const snapshotIndex = Number(properties.snapshot_index);
-
-      if (!Number.isFinite(clusterId) || !Number.isFinite(snapshotIndex)) {
-        return;
-      }
-
-      const current = latestByCluster.get(clusterId);
-      const currentIndex = current
-        ? Number((current.properties || {}).snapshot_index)
-        : -Infinity;
-
-      if (!current || snapshotIndex > currentIndex) {
-        latestByCluster.set(clusterId, feature);
-      }
-    });
-
-    const candidates = [...latestByCluster.values()]
+    const candidates = latestEnvelopeFeatures
       .map(feature => {
         const properties = feature.properties || {};
-        const boundaryDistance = distanceToFeatureKm(lon, lat, feature);
-        const inside = pointInsideFeature(lon, lat, feature);
-        const timeText = String(
-          properties.observed_until_utc ||
-          properties.estimated_time_utc ||
-          ''
-        );
-        const parsedTime = timeText ? new Date(timeText) : null;
+        const nearest = distanceToFeatureKm(lon, lat, feature);
+
+        if (!nearest) return null;
+
+        const observedUntil = new Date(properties.observed_until_utc || '');
 
         return {
-          distance_km: inside ? 0 : boundaryDistance,
-          boundary_distance_km: boundaryDistance,
-          inside,
+          distance_km: nearest.distance_km,
+          nearest_point: nearest.nearest_point,
           cluster_id: Number(properties.cluster_id),
-          snapshot_index: Number(properties.snapshot_index),
           contour_time:
-            parsedTime && !Number.isNaN(parsedTime.getTime())
-              ? parsedTime
-              : null,
-          supported_detections: Number(
-            properties.supported_detections_cumulative
-          )
+            Number.isNaN(observedUntil.getTime())
+              ? null
+              : observedUntil
         };
       })
-      .filter(candidate => Number.isFinite(candidate.distance_km))
-      .sort((left, right) => left.distance_km - right.distance_km);
+      .filter(Boolean)
+      .sort((a, b) => a.distance_km - b.distance_km);
 
     const nearest = candidates[0];
 
     if (!nearest) {
       return {
         ok: false,
-        reason: 'Aucune emprise cumulative exploitable à proximité.'
+        reason: 'Aucune limite détectée exploitable à proximité.'
       };
     }
 
     return {
       ok: true,
       interpretable:
-        nearest.inside ||
         nearest.distance_km <= ADDRESS_MAX_CONTOUR_DISTANCE_KM,
       nearest_distance_km: nearest.distance_km,
-      boundary_distance_km: nearest.boundary_distance_km,
-      inside: nearest.inside,
+      nearest_point: nearest.nearest_point,
       cluster_id: nearest.cluster_id,
-      contour_time: nearest.contour_time,
-      supported_detections: nearest.supported_detections
+      contour_time: nearest.contour_time
     };
   }
 
-  function formatArrivalDate(date) {
-    return new Intl.DateTimeFormat('fr-FR', {
-      timeZone: 'Europe/Paris',
-      weekday: 'long',
-      day: '2-digit',
-      month: 'long',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+  function clearAddressMapLayers() {
+    [arrivalMarker, arrivalTargetMarker, arrivalLine].forEach(layer => {
+      if (layer) map.removeLayer(layer);
+    });
+
+    arrivalMarker = null;
+    arrivalTargetMarker = null;
+    arrivalLine = null;
   }
 
   function showArrivalMessage(html, isError) {
@@ -2547,7 +3986,7 @@
       await ensureIsochronesLoaded(true);
     } catch (error) {
       showArrivalMessage(
-        'Impossible de charger les emprises FIRMS nécessaires au calcul.',
+        'Impossible de charger les emprises nécessaires au calcul.',
         true
       );
       return;
@@ -2565,11 +4004,7 @@
     }
 
     const location = locateAddressRelativeToIsochrones(item.lon, item.lat);
-
-    if (arrivalMarker) {
-      map.removeLayer(arrivalMarker);
-      arrivalMarker = null;
-    }
+    clearAddressMapLayers();
 
     arrivalMarker = L.circleMarker([item.lat, item.lon], {
       pane: 'firepoints',
@@ -2577,12 +4012,12 @@
       color: '#ffffff',
       weight: 2,
       fillColor: '#101418',
-      fillOpacity: 0.95
+      fillOpacity: 0.98,
+      interactive: false
     }).addTo(map);
 
-    map.setView([item.lat, item.lon], Math.max(map.getZoom(), 12));
-
     if (!location.ok) {
+      map.setView([item.lat, item.lon], Math.max(map.getZoom(), 12));
       showArrivalMessage(
         '<b>' + escapeHtml(item.label) + '</b><br>' +
         escapeHtml(location.reason),
@@ -2591,64 +4026,71 @@
       return;
     }
 
-    let distanceLine;
+    const [nearestLon, nearestLat] = location.nearest_point;
+    const distance = location.nearest_distance_km;
+    const distanceText =
+      distance < 0.1
+        ? '< 100 m'
+        : distance.toLocaleString('fr-FR', {
+            minimumFractionDigits: distance < 10 ? 1 : 0,
+            maximumFractionDigits: distance < 10 ? 1 : 0
+          }) + ' km';
 
-    if (location.inside) {
-      distanceLine =
-        '<b>Adresse située à l’intérieur de la dernière emprise cumulative ' +
-        'détectée pour l’incendie ' + escapeHtml(location.cluster_id) + '.</b>';
-    } else if (location.nearest_distance_km < 0.1) {
-      distanceLine =
-        '<b>Adresse au contact de la limite de la dernière emprise détectée ' +
-        'pour l’incendie ' + escapeHtml(location.cluster_id) + '.</b>';
-    } else {
-      distanceLine =
-        '<b>Limite de la dernière emprise détectée pour l’incendie ' +
-        escapeHtml(location.cluster_id) + ' : ' +
-        location.nearest_distance_km.toFixed(1) + ' km.</b>';
-    }
+    arrivalTargetMarker = L.circleMarker([nearestLat, nearestLon], {
+      pane: 'firepoints',
+      radius: 5,
+      color: '#ffffff',
+      weight: 1.5,
+      fillColor: '#d7191c',
+      fillOpacity: 1,
+      interactive: false
+    }).addTo(map);
 
-    const observationLine = location.contour_time
-      ? 'Cette emprise cumule les détections actives jusqu’au ' +
-        escapeHtml(formatArrivalDate(location.contour_time)) + '.'
-      : 'Dernière emprise cumulative disponible pour cet incendie.';
+    arrivalLine = L.polyline(
+      [
+        [item.lat, item.lon],
+        [nearestLat, nearestLon]
+      ],
+      {
+        pane: 'firepoints',
+        color: '#ffffff',
+        weight: 2.5,
+        opacity: 0.95,
+        dashArray: '8 6',
+        lineCap: 'round',
+        interactive: false
+      }
+    ).addTo(map);
 
-    let interpretation;
+    arrivalLine.bindTooltip(distanceText, {
+      permanent: true,
+      direction: 'center',
+      className: 'distance-line-label',
+      opacity: 1
+    }).openTooltip();
 
-    if (location.inside) {
-      interpretation =
-        'Cette position se trouve dans l’union géométrique des empreintes de pixels ' +
-        'de feu actif retenues. Cela ne prouve pas que toute la surface a brûlé.';
-    } else if (location.interpretable) {
-      interpretation =
-        'L’adresse se trouve dans le voisinage spatial de la dernière emprise FIRMS détectée.';
-    } else {
-      interpretation =
-        'L’adresse est à plus de ' +
+    map.fitBounds(arrivalLine.getBounds().pad(0.35), {
+      maxZoom: 13,
+      animate: true
+    });
+
+    const dateText = location.contour_time
+      ? formatObservationDate(location.contour_time)
+      : 'date inconnue';
+
+    const interpretation = location.interpretable
+      ? 'Distance à la dernière limite cumulative détectée.'
+      : 'Adresse éloignée de plus de ' +
         ADDRESS_MAX_CONTOUR_DISTANCE_KM +
-        ' km de la limite de la dernière emprise détectée.';
-    }
-
-    const detail =
-      distanceLine +
-      '<br>' +
-      observationLine +
-      '<br>' +
-      interpretation +
-      '<br><small>' +
-      'Produit fondé sur des passages satellitaires discontinus. ' +
-      'Il ne décrit ni un périmètre brûlé, ni un front continu, ' +
-      'ni l’heure de passage du feu à cette adresse.' +
-      '</small>';
-
-    arrivalMarker
-      .bindPopup(
-        '<b>' + escapeHtml(item.label) + '</b><br>' + detail
-      )
-      .openPopup();
+        ' km de la dernière limite détectée.';
 
     showArrivalMessage(
-      '<b>' + escapeHtml(item.label) + '</b><br>' + detail,
+      '<b>' + escapeHtml(item.label) + '</b> — ' +
+      '<b>' + escapeHtml(distanceText) + '</b> ' +
+      'de l’incendie ' + escapeHtml(location.cluster_id) +
+      ' (observations jusqu’au ' + escapeHtml(dateText) + ').' +
+      '<br><small>' + escapeHtml(interpretation) +
+      ' Cette ligne ne constitue pas une distance de sécurité.</small>',
       !location.interpretable
     );
   }
@@ -2664,7 +4106,7 @@
     if (!results.length) {
       hideAddressSuggestions();
       showArrivalMessage(
-        'Aucune adresse trouvée dans le voisinage autorisé des emprises détectées.',
+        'Aucune adresse trouvée dans le voisinage autorisé des emprises.',
         true
       );
       return;
@@ -2688,10 +4130,7 @@
 
     if (text.length < 3) {
       hideAddressSuggestions();
-      showArrivalMessage(
-        'Saisis au moins trois caractères.',
-        true
-      );
+      showArrivalMessage('Saisis au moins trois caractères.', true);
       return;
     }
 
@@ -2757,8 +4196,10 @@
     if (event.key === 'Enter') {
       event.preventDefault();
 
-      if (lastAddressResults.length &&
-          addressSuggestions.style.display !== 'none') {
+      if (
+        lastAddressResults.length &&
+        addressSuggestions.style.display !== 'none'
+      ) {
         selectNearbyAddress(lastAddressResults[0]);
       } else {
         searchNearbyAddresses();
