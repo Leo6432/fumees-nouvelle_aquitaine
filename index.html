@@ -47,14 +47,64 @@
   }
   @keyframes pulse{50%{opacity:.4}}
   @media (prefers-reduced-motion: reduce){header h1 .dot{animation:none}}
-  .controls{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.85rem;margin-left:auto}
+  .controls{
+    width:100%;
+    margin-left:0;
+    font-size:.85rem;
+  }
+  .primary-controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 14px;
+    align-items:center;
+  }
   .controls label{color:var(--smoke)}
   .controls input[type="date"],.controls select{
     background:var(--panel-2);color:var(--paper);
     border:1px solid #38424e;border-radius:6px;
     padding:5px 8px;font-size:.85rem;
   }
-  .controls input[type="range"]{accent-color:var(--ember);width:90px;vertical-align:middle}
+  .controls input[type="range"]{
+    accent-color:var(--ember);
+    width:90px;
+    vertical-align:middle;
+  }
+  .layers-panel{
+    margin-top:8px;
+    padding-top:7px;
+    border-top:1px solid #38424e;
+  }
+  .layers-panel summary{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    cursor:pointer;
+    color:var(--paper);
+    font-weight:600;
+    user-select:none;
+    list-style:none;
+    padding:5px 8px;
+    border:1px solid #38424e;
+    border-radius:6px;
+    background:var(--panel-2);
+  }
+  .layers-panel summary::-webkit-details-marker{display:none}
+  .layers-panel summary::before{
+    content:"▸";
+    color:var(--ember);
+    transition:transform .15s ease;
+  }
+  .layers-panel[open] summary::before{
+    transform:rotate(90deg);
+  }
+  .layers-controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 14px;
+    align-items:center;
+    margin-top:9px;
+    padding:7px 2px 1px;
+  }
   .toggle{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
   .toggle input{accent-color:var(--ember)}
   #map{flex:1;min-height:0}
@@ -72,6 +122,24 @@
   footer details[open] summary{margin-bottom:2px}
   @media (max-width:600px){
     footer{font-size:.68rem;padding:5px 10px}
+    header{padding:9px 10px}
+    .primary-controls{
+      align-items:flex-start;
+      gap:8px 10px;
+    }
+    .primary-controls > span{
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+    .layers-panel summary{
+      font-size:.78rem;
+      padding:5px 7px;
+    }
+    .layers-controls{
+      gap:8px 12px;
+      font-size:.78rem;
+    }
   }
   .leaflet-container{background:#0b0e11}
   .notice{
@@ -159,49 +227,6 @@
     min-width:24px;
     text-align:right;
   }
-
-  /* ==== Légende FIRMS compacte sur mobile ==== */
-  @media (max-width: 768px) {
-    .firms-legend {
-      min-width: 140px;
-      max-width: 155px;
-      padding: 6px 7px;
-      font-size: 0.60rem;
-      line-height: 1.15;
-      border-radius: 7px;
-    }
-
-    .firms-legend b {
-      display: block;
-      font-size: 0.64rem;
-      margin-bottom: 4px;
-    }
-
-    .firms-legend .firms-help {
-      display: none;
-    }
-
-    .firms-legend .firms-all,
-    .firms-legend .firms-bin {
-      gap: 4px;
-      padding: 2px 3px;
-      margin: 0;
-      border-radius: 4px;
-      font-size: 0.60rem;
-    }
-
-    .firms-legend .firms-sw {
-      width: 10px;
-      height: 10px;
-      flex: 0 0 10px;
-    }
-
-    .firms-legend .firms-count {
-      min-width: 18px;
-      font-size: 0.58rem;
-    }
-  }
-
 </style>
 </head>
 <body>
@@ -209,36 +234,79 @@
 <header>
   <h1><span class="dot"></span>Fumées · Nouvelle-Aquitaine</h1>
   <div class="controls">
-    <span><label for="date">Jour</label>
-    <input type="date" id="date"></span>
-    <span><label for="sat">Satellite</label>
-    <select id="sat">
-      <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor">VIIRS NOAA-20 (~13h30)</option>
-      <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS Suomi-NPP (~13h30)</option>
-      <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
-      <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
-      <option value="S3_OLCI_TRUECOLOR">Sentinel-3 OLCI (3A + 3B, ~300 m)</option>
-    </select></span>
-    <label class="toggle" title="Détections thermiques MODIS et VIIRS, actualisées automatiquement"><input type="checkbox" id="fires" checked>Foyers actuels (48 h)</label>
-    <label class="toggle"><input type="checkbox" id="communes">Indice ATMO par commune</label>
-    <span id="pollutant-wrap" style="display:none"><label for="pollutant">Polluant</label>
-    <select id="pollutant">
-      <option value="code_qual">Indice global</option>
-      <option value="code_pm25">Particules PM2.5</option>
-      <option value="code_pm10">Particules PM10</option>
-      <option value="code_o3">Ozone (O₃)</option>
-      <option value="code_no2">Dioxyde d'azote (NO₂)</option>
-      <option value="code_so2">Dioxyde de soufre (SO₂)</option>
-    </select></span>
-    <label class="toggle" title="Couche WMS brute, utile seulement pour contrôler la choroplèthe"><input type="checkbox" id="atmo">Contrôle WMS (points)</label>
-    <label class="toggle"><input type="checkbox" id="wind" checked>Vent actuel (ECMWF)</label>
-    <label class="toggle"><input type="checkbox" id="burnt">Surfaces brûlées (EFFIS)</label>
-    <label class="toggle"><input type="checkbox" id="aerosol">Aérosols OMPS (AI)</label>
-    <label class="toggle"><input type="checkbox" id="labels" checked>Repères (villes, routes)</label>
-    <span><label for="aiop">Intensité aérosols</label>
-    <input type="range" id="aiop" min="20" max="100" value="70"></span>
-    <span><label for="op">Opacité satellite</label>
-    <input type="range" id="op" min="20" max="100" value="100"></span>
+    <div class="primary-controls">
+      <span>
+        <label for="date">Jour</label>
+        <input type="date" id="date">
+      </span>
+
+      <span>
+        <label for="sat">Satellite</label>
+        <select id="sat">
+          <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor">VIIRS NOAA-20 (~13h30)</option>
+          <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS Suomi-NPP (~13h30)</option>
+          <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
+          <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
+          <option value="S3_OLCI_TRUECOLOR">Sentinel-3 OLCI (3A + 3B, ~300 m)</option>
+        </select>
+      </span>
+    </div>
+
+    <details class="layers-panel">
+      <summary>Couches et réglages</summary>
+
+      <div class="layers-controls">
+        <label class="toggle" title="Détections thermiques MODIS et VIIRS, actualisées automatiquement">
+          <input type="checkbox" id="fires">Foyers actuels (48 h)
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="communes">Indice ATMO par commune
+        </label>
+
+        <span id="pollutant-wrap" style="display:none">
+          <label for="pollutant">Polluant</label>
+          <select id="pollutant">
+            <option value="code_qual">Indice global</option>
+            <option value="code_pm25">Particules PM2.5</option>
+            <option value="code_pm10">Particules PM10</option>
+            <option value="code_o3">Ozone (O₃)</option>
+            <option value="code_no2">Dioxyde d'azote (NO₂)</option>
+            <option value="code_so2">Dioxyde de soufre (SO₂)</option>
+          </select>
+        </span>
+
+        <label class="toggle" title="Couche WMS brute, utile seulement pour contrôler la choroplèthe">
+          <input type="checkbox" id="atmo">Contrôle WMS (points)
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="wind">Vent actuel (ECMWF)
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="burnt">Surfaces brûlées (EFFIS)
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="aerosol">Aérosols OMPS (AI)
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="labels">Repères (villes, routes)
+        </label>
+
+        <span>
+          <label for="aiop">Intensité aérosols</label>
+          <input type="range" id="aiop" min="20" max="100" value="70">
+        </span>
+
+        <span>
+          <label for="op">Opacité satellite</label>
+          <input type="range" id="op" min="20" max="100" value="100">
+        </span>
+      </div>
+    </details>
   </div>
 </header>
 
@@ -320,7 +388,7 @@
   const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png', {
     subdomains: 'abcd', maxZoom: 19, pane: 'toplabels',
     attribution: '© CARTO'
-  }).addTo(map);
+  });
 
   const GIBS = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best';
 
