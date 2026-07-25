@@ -159,6 +159,49 @@
     min-width:24px;
     text-align:right;
   }
+
+  /* ==== Légende FIRMS compacte sur mobile ==== */
+  @media (max-width: 768px) {
+    .firms-legend {
+      min-width: 140px;
+      max-width: 155px;
+      padding: 6px 7px;
+      font-size: 0.60rem;
+      line-height: 1.15;
+      border-radius: 7px;
+    }
+
+    .firms-legend b {
+      display: block;
+      font-size: 0.64rem;
+      margin-bottom: 4px;
+    }
+
+    .firms-legend .firms-help {
+      display: none;
+    }
+
+    .firms-legend .firms-all,
+    .firms-legend .firms-bin {
+      gap: 4px;
+      padding: 2px 3px;
+      margin: 0;
+      border-radius: 4px;
+      font-size: 0.60rem;
+    }
+
+    .firms-legend .firms-sw {
+      width: 10px;
+      height: 10px;
+      flex: 0 0 10px;
+    }
+
+    .firms-legend .firms-count {
+      min-width: 18px;
+      font-size: 0.58rem;
+    }
+  }
+
 </style>
 </head>
 <body>
