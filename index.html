@@ -174,6 +174,7 @@
       <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS Suomi-NPP (~13h30)</option>
       <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
+      <option value="S3_OLCI_TRUECOLOR">Sentinel-3 OLCI (3A + 3B, ~300 m)</option>
     </select></span>
     <label class="toggle" title="Détections thermiques MODIS et VIIRS, actualisées automatiquement"><input type="checkbox" id="fires" checked>Foyers actuels (48 h)</label>
     <label class="toggle"><input type="checkbox" id="communes">Indice ATMO par commune</label>
@@ -222,7 +223,7 @@
   <span class="warn">Une image satellite par jour — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).</span>
   <details>
     <summary>Sources &amp; crédits</summary>
-    Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu).
+    Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS) et Copernicus Data Space (Sentinel-3 OLCI 3A + 3B, couleurs naturelles — les panaches de fumée sont visibles en gris-bleu).
     Foyers : détections thermiques MODIS et VIIRS des dernières 48 h (NASA FIRMS ; couleurs du rouge au jaune clair selon l’âge, par classes de 8 h).
     Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
@@ -299,8 +300,16 @@
   let userPickedDate = false; // l'utilisateur a choisi une date : plus de recul auto
 
   let satLayer = null;
+  let sentinel3Layer = null;
   let fireLayer = null;
   let aiLayer = null;
+
+  // Emprise fixe Nouvelle-Aquitaine pour l'image Sentinel-3 OLCI.
+  // Une image régionale unique évite de multiplier les appels au service Copernicus.
+  const SENTINEL3_BOUNDS = L.latLngBounds([
+    [42.4, -2.2],
+    [47.4,  2.9]
+  ]);
 
   // Classes temporelles FIRMS : rouge = très récent, jaune pâle = plus ancien.
   // Les intervalles sont réguliers : six classes de huit heures sur 48 h.
@@ -645,46 +654,122 @@
     const sat = document.getElementById('sat').value;
     const opacity = document.getElementById('op').value / 100;
 
-    if (satLayer) map.removeLayer(satLayer);
-    if (aiLayer) map.removeLayer(aiLayer);
+    if (satLayer) {
+      map.removeLayer(satLayer);
+      satLayer = null;
+    }
+    if (sentinel3Layer) {
+      map.removeLayer(sentinel3Layer);
+      sentinel3Layer = null;
+    }
+    if (aiLayer) {
+      map.removeLayer(aiLayer);
+      aiLayer = null;
+    }
 
-    satLayer = L.tileLayer(gibsUrl(sat, date, 'jpg'), {
-      maxNativeZoom: 9, maxZoom: 12, opacity: opacity,
-      attribution: 'NASA GIBS'
-    }).addTo(map);
-
-    // Recul automatique : si l'image demandée n'est pas encore publiée
-    // (tuiles en erreur, rien de chargé), on affiche la veille.
-    let errors = 0, loads = 0, stepped = false;
     notice.style.display = 'none';
-    satLayer.on('tileload', () => { loads++; });
-    satLayer.on('tileerror', () => {
-      errors++;
-      if (!stepped && !userPickedDate && autoStep < 2 && errors > 4 && loads === 0) {
-        stepped = true;
-        autoStep++;
-        dateInput.value = isoDaysAgo(autoStep);
-        notice.textContent = "Image du jour pas encore publiée — affichage de la dernière disponible (" +
-          new Date(dateInput.value).toLocaleDateString('fr-FR') + ").";
-        notice.style.display = 'block';
-        rebuild();
-        // Le changement de date doit aussi s'appliquer aux deux couches ATMO.
-        setTimeout(refreshAtmoForSelectedDate, 0);
-      }
-    });
 
-    // Indice d'aérosols standard OMPS : adapté aux valeurs usuelles (environ 0 à 5).
-    // L'ancien produit PyroCumuloNimbus n'est utile que pour les panaches extrêmes
-    // et rend les valeurs ordinaires presque blanches, donc peu lisibles.
+    if (sat === 'S3_OLCI_TRUECOLOR') {
+      const bbox = '-2.2,42.4,2.9,47.4';
+      const url =
+        OPENAQ_PROXY +
+        '/sentinel3/olci' +
+        '?date=' + encodeURIComponent(date) +
+        '&bbox=' + encodeURIComponent(bbox) +
+        '&width=1200&height=1200';
+
+      notice.textContent =
+        'Chargement de l’image Sentinel-3 OLCI du ' +
+        new Date(date + 'T12:00:00Z').toLocaleDateString('fr-FR') +
+        '…';
+      notice.style.display = 'block';
+
+      sentinel3Layer = L.imageOverlay(
+        url,
+        SENTINEL3_BOUNDS,
+        {
+          opacity,
+          interactive: false,
+          crossOrigin: true,
+          attribution:
+            'Copernicus Sentinel-3 OLCI / Copernicus Data Space'
+        }
+      ).addTo(map);
+
+      sentinel3Layer.on('load', () => {
+        notice.style.display = 'none';
+      });
+
+      sentinel3Layer.on('error', () => {
+        notice.textContent =
+          'Image Sentinel-3 OLCI indisponible pour cette date, ' +
+          'ou accès Copernicus non configuré dans le Worker.';
+        notice.style.display = 'block';
+      });
+
+    } else {
+      satLayer = L.tileLayer(gibsUrl(sat, date, 'jpg'), {
+        maxNativeZoom: 9,
+        maxZoom: 12,
+        opacity,
+        attribution: 'NASA GIBS'
+      }).addTo(map);
+
+      // Recul automatique si l'image NASA du jour n'est pas encore publiée.
+      let errors = 0;
+      let loads = 0;
+      let stepped = false;
+
+      satLayer.on('tileload', () => {
+        loads++;
+      });
+
+      satLayer.on('tileerror', () => {
+        errors++;
+
+        if (
+          !stepped &&
+          !userPickedDate &&
+          autoStep < 2 &&
+          errors > 4 &&
+          loads === 0
+        ) {
+          stepped = true;
+          autoStep++;
+          dateInput.value = isoDaysAgo(autoStep);
+
+          notice.textContent =
+            "Image du jour pas encore publiée — affichage de la " +
+            "dernière disponible (" +
+            new Date(dateInput.value + 'T12:00:00Z')
+              .toLocaleDateString('fr-FR') +
+            ").";
+          notice.style.display = 'block';
+
+          rebuild();
+          setTimeout(refreshAtmoForSelectedDate, 0);
+        }
+      });
+    }
+
+    // L'indice OMPS reste indépendant du fond satellite choisi.
     const aerosolOn = document.getElementById('aerosol').checked;
     aerosolLegend.style.display = aerosolOn ? '' : 'none';
+
     if (aerosolOn) {
-      aiLayer = L.tileLayer(gibsUrl('OMPS_Aerosol_Index', date, 'png', 6), {
-        maxNativeZoom: 6, maxZoom: 12, pane: 'aerosol',
-        opacity: document.getElementById('aiop').value / 100,
-        updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 1,
-        attribution: 'NASA OMPS'
-      }).addTo(map);
+      aiLayer = L.tileLayer(
+        gibsUrl('OMPS_Aerosol_Index', date, 'png', 6),
+        {
+          maxNativeZoom: 6,
+          maxZoom: 12,
+          pane: 'aerosol',
+          opacity: document.getElementById('aiop').value / 100,
+          updateWhenIdle: true,
+          updateWhenZooming: false,
+          keepBuffer: 1,
+          attribution: 'NASA OMPS'
+        }
+      ).addTo(map);
     }
   }
 
@@ -698,7 +783,9 @@
   document.getElementById('fires').addEventListener('change', loadFirms);
   document.getElementById('aerosol').addEventListener('change', rebuild);
   document.getElementById('op').addEventListener('input', () => {
-    if (satLayer) satLayer.setOpacity(document.getElementById('op').value / 100);
+    const opacity = document.getElementById('op').value / 100;
+    if (satLayer) satLayer.setOpacity(opacity);
+    if (sentinel3Layer) sentinel3Layer.setOpacity(opacity);
   });
   document.getElementById('aiop').addEventListener('input', () => {
     if (aiLayer) aiLayer.setOpacity(document.getElementById('aiop').value / 100);
