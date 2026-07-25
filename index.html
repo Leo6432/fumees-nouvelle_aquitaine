@@ -172,6 +172,13 @@
     height:8px;border-radius:4px;margin:5px 0 3px;
     background:linear-gradient(90deg,#efefef,#f6f34d,#f2a000,#e02a00,#960032);
   }
+  #isochrones-legend{
+    position:absolute;left:12px;bottom:26px;z-index:1001;display:none;
+    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
+    padding:8px 12px;font-size:.72rem;color:var(--smoke);line-height:1.7;
+  }
+  #isochrones-legend b{color:var(--paper);font-weight:600}
+  #isochrones-legend .iso-sw{display:inline-block;width:18px;height:4px;border-radius:2px;margin-right:6px;vertical-align:3px}
 
   .firms-legend{
     background:rgba(26,33,41,.94);
@@ -386,6 +393,10 @@
           <input type="checkbox" id="burnt">Surfaces brûlées (EFFIS)
         </label>
 
+        <label class="toggle" title="Reconstruction de la progression du feu par krigeage des détections FIRMS (calcul hors-ligne)">
+          <input type="checkbox" id="isochrones">Carte de propagation (isochrones)
+        </label>
+
         <label class="toggle">
           <input type="checkbox" id="aerosol">Aérosols OMPS (AI)
         </label>
@@ -426,6 +437,7 @@
   <small>Gris pâle : faible ou nul · jaune/orange : panache marqué · rouge : signal très fort.<br>
   Donnée satellitaire en bandes de passage, pas une mesure au sol.</small>
 </div>
+<div id="isochrones-legend"></div>
 <div class="notice" id="notice"></div>
 
 <footer>
@@ -438,6 +450,7 @@
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
     Indice ATMO (points) : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL) ; détail par commune sur la <a href="https://www.atmo-nouvelleaquitaine.org/air-commune">carte officielle</a>.
     Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS (périmètres en zoomant ; feux d'environ 30 ha et plus).
+    Carte de propagation (isochrones) : reconstruction par krigeage des détections FIRMS — estimation hors-ligne, non temps réel, pas un front observé.
     Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Limites de communes : IGN Admin Express COG 2026 (Licence ouverte).
   </details>
 </footer>
@@ -1825,6 +1838,74 @@
   }
 
   document.getElementById('burnt').addEventListener('change', toggleBurnt);
+
+  // ==== Carte de propagation : isochrones (krigeage FIRMS, calcul hors-ligne) ====
+  // Fichier statique produit par le pipeline Python fire-propagation.
+  // Chargé à la demande. Les contours montrent où était le front à chaque
+  // tranche de 6 h (jaune = ancien, rouge = récent).
+  map.createPane('isochrones');
+  map.getPane('isochrones').style.zIndex = 635;
+
+  let isochronesLayer = null;
+  let isochronesData = null;
+  const isoLegend = document.getElementById('isochrones-legend');
+
+  function isoColor(hoursAgo, maxH) {
+    const t = 1 - Math.min(hoursAgo / maxH, 1); // 0 ancien, 1 récent
+    return 'rgb(255,' + Math.round(230 - t * 200) + ',' + Math.round(40 - t * 20) + ')';
+  }
+
+  async function toggleIsochrones() {
+    const on = document.getElementById('isochrones').checked;
+    if (isoLegend) isoLegend.style.display = on ? '' : 'none';
+    if (!on) {
+      if (isochronesLayer) map.removeLayer(isochronesLayer);
+      return;
+    }
+    if (isochronesLayer) { isochronesLayer.addTo(map); return; }
+
+    notice.textContent = 'Chargement de la carte de propagation…';
+    notice.style.display = 'block';
+    try {
+      if (!isochronesData) {
+        const r = await fetch('isochrones.geojson');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        isochronesData = await r.json();
+      }
+      const hours = [...new Set(isochronesData.features
+        .map(f => Math.round(f.properties.hours_ago)))].sort((a, b) => b - a);
+      const maxH = Math.max(...hours);
+
+      isochronesLayer = L.geoJSON(isochronesData, {
+        pane: 'isochrones',
+        style: f => ({
+          color: isoColor(f.properties.hours_ago, maxH),
+          weight: 3, opacity: 0.9
+        }),
+        onEachFeature: (f, layer) => {
+          const h = Math.round(f.properties.hours_ago);
+          layer.bindPopup('Front du feu il y a <b>' + h + ' h</b>');
+        }
+      }).addTo(map);
+
+      // Légende
+      if (isoLegend) {
+        isoLegend.innerHTML = '<b>Front du feu</b><br>' + hours.map(h =>
+          '<span class="iso-sw" style="background:' + isoColor(h, maxH) + '"></span>il y a ' + h + ' h'
+        ).join('<br>');
+        isoLegend.style.display = '';
+      }
+      notice.style.display = 'none';
+    } catch (err) {
+      notice.textContent = 'Carte de propagation indisponible (isochrones.geojson manquant ?).';
+      notice.style.display = 'block';
+      setTimeout(() => { notice.style.display = 'none'; }, 8000);
+      document.getElementById('isochrones').checked = false;
+      if (isoLegend) isoLegend.style.display = 'none';
+    }
+  }
+
+  document.getElementById('isochrones').addEventListener('change', toggleIsochrones);
   map.on('zoomend', () => {
     if (document.getElementById('burnt').checked) updateBurntForZoom();
   });
