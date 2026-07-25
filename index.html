@@ -732,6 +732,7 @@
       if (activeFireAgeBin !== 'all' && rec.ageBin !== activeFireAgeBin) return;
 
       L.circleMarker([rec.lat, rec.lon], {
+        pane: 'firepoints',
         radius: Math.min(4 + Math.sqrt(rec.frp) / 2, 14),
         color: '#101418',
         weight: 1.2,
@@ -1168,6 +1169,8 @@
   map.createPane('vectors');
   map.getPane('vectors').style.zIndex = 640;
   map.getPane('vectors').style.pointerEvents = 'none';
+  map.createPane('firepoints');
+  map.getPane('firepoints').style.zIndex = 660;
 
   let progressionLayer = null;
   const PROG_BIN_HOURS = 6;
@@ -1198,91 +1201,113 @@
     if (progressionLayer) { map.removeLayer(progressionLayer); progressionLayer = null; }
   }
 
-  function renderProgression() {
-    clearProgression();
-    if (!document.getElementById('progression').checked) return;
-    if (!fireRecords || fireRecords.length < 2) return;
+  // Clustering spatial simple (union-find par proximité) : regroupe les foyers
+  // qui appartiennent au même incendie, pour ne PAS relier deux feux distincts.
+  const CLUSTER_RADIUS_KM = 10;
 
-    // Regrouper par tranche de 6 h (age croissant = plus ancien).
-    // On utilise l'âge : bin 0 = [42,48] h ... jusqu'au plus récent.
+  function clusterFires(records) {
+    const n = records.length;
+    const parent = Array.from({ length: n }, (_, i) => i);
+    const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+    const union = (a, b) => { parent[find(a)] = find(b); };
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const d = bearingDistance(records[i].lat, records[i].lon, records[j].lat, records[j].lon).dist;
+        if (d <= CLUSTER_RADIUS_KM) union(i, j);
+      }
+    }
+    const groups = {};
+    for (let i = 0; i < n; i++) (groups[find(i)] = groups[find(i)] || []).push(records[i]);
+    return Object.values(groups);
+  }
+
+  // Barycentre pondéré FRP, par tranche de temps, à l'intérieur d'un cluster
+  function clusterCenters(pts) {
     const bins = {};
-    fireRecords.forEach(r => {
+    pts.forEach(r => {
       if (!Number.isFinite(r.age)) return;
       const b = Math.floor(r.age / PROG_BIN_HOURS);
       (bins[b] = bins[b] || []).push(r);
     });
-
-    // Barycentre pondéré FRP de chaque tranche, du plus ancien au plus récent
-    const centers = Object.keys(bins)
-      .map(Number)
+    return Object.keys(bins).map(Number)
       .sort((a, b) => b - a) // âge décroissant → chronologique
       .map(b => {
-        const pts = bins[b];
+        const arr = bins[b];
         let sw = 0, slat = 0, slon = 0;
-        pts.forEach(p => {
-          const w = Math.max(p.frp, 1);
-          sw += w; slat += p.lat * w; slon += p.lon * w;
-        });
-        return {
-          lat: slat / sw, lon: slon / sw,
-          n: pts.length, hoursAgoMid: (b + 0.5) * PROG_BIN_HOURS
-        };
+        arr.forEach(p => { const w = Math.max(p.frp, 1); sw += w; slat += p.lat * w; slon += p.lon * w; });
+        return { lat: slat / sw, lon: slon / sw, n: arr.length, hoursAgoMid: (b + 0.5) * PROG_BIN_HOURS };
       })
-      .filter(c => c.n >= 2); // ignorer les tranches trop maigres (bruit)
+      .filter(c => c.n >= 2);
+  }
 
-    if (centers.length < 2) {
-      notice.textContent = 'Progression : pas assez de foyers répartis dans le temps pour tracer une tendance.';
+  function arrowSegments(a, b, col, layer) {
+    const bd = bearingDistance(a.lat, a.lon, b.lat, b.lon);
+    L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { pane: 'vectors', color: col, weight: 3, opacity: 0.9 }).addTo(layer);
+    const headLen = Math.min(bd.dist * 0.3, 1.2);
+    [-25, 25].forEach(off => {
+      const ang = (bd.bearing + 180 + off) * Math.PI / 180, R = 6371;
+      const dLat = (headLen / R) * Math.cos(ang) * 180 / Math.PI;
+      const dLon = (headLen / R) * Math.sin(ang) * 180 / Math.PI / Math.cos(b.lat * Math.PI / 180);
+      L.polyline([[b.lat, b.lon], [b.lat + dLat, b.lon + dLon]], { pane: 'vectors', color: col, weight: 3, opacity: 0.9 }).addTo(layer);
+    });
+    return bd;
+  }
+
+  function renderProgression() {
+    clearProgression();
+    if (!document.getElementById('progression').checked) return;
+    if (!fireRecords || fireRecords.length < 3) return;
+
+    // 1) Séparer les incendies distincts
+    const clusters = clusterFires(fireRecords)
+      .filter(c => c.length >= 4); // ignorer le bruit isolé
+
+    progressionLayer = L.layerGroup();
+    let drawn = 0;
+
+    // 2) Pour chaque incendie, tracer sa propre progression dans le temps
+    clusters.forEach(cluster => {
+      const centers = clusterCenters(cluster);
+      if (centers.length < 2) return;
+
+      for (let i = 1; i < centers.length; i++) {
+        const a = centers[i - 1], b = centers[i];
+        const dtH = Math.max(a.hoursAgoMid - b.hoursAgoMid, 0.1);
+        const t = i / (centers.length - 1);
+        const col = 'rgba(255,' + Math.round(150 - t * 130) + ',30,0.92)';
+        const bd = arrowSegments(a, b, col, progressionLayer);
+        const speed = bd.dist / dtH;
+
+        // Étiquette seulement si le déplacement est significatif (> 0.5 km),
+        // sinon on n'encombre pas avec du bruit sub-kilométrique.
+        if (bd.dist >= 0.5) {
+          L.marker([(a.lat + b.lat) / 2, (a.lon + b.lon) / 2], {
+            pane: 'vectors', interactive: true,
+            icon: L.divIcon({
+              className: '',
+              html: '<div style="white-space:nowrap;font-size:11px;color:#fff;' +
+                'text-shadow:0 0 3px #000,0 0 3px #000;font-weight:600">' +
+                bearingToCardinal(bd.bearing) + ' · ' + speed.toFixed(1) + ' km/h</div>',
+              iconSize: [0, 0], iconAnchor: [-6, 6]
+            })
+          }).bindPopup(
+            '<b>Progression d\'un foyer</b><br>' +
+            'Direction : ' + bearingToCardinal(bd.bearing) + ' (' + Math.round(bd.bearing) + '° / Nord)<br>' +
+            'Vitesse : ' + speed.toFixed(1) + ' km/h<br>' +
+            'Déplacement : ' + bd.dist.toFixed(1) + ' km en ' + dtH.toFixed(0) + ' h<br>' +
+            '<small>Barycentre thermique (pondéré FRP) d\'un même foyer, tranches de ' + PROG_BIN_HOURS + ' h.</small>'
+          ).addTo(progressionLayer);
+        }
+        drawn++;
+      }
+    });
+
+    if (drawn === 0) {
+      clearProgression();
+      notice.textContent = 'Progression : pas encore assez de foyers répartis dans le temps sur un même incendie.';
       notice.style.display = 'block';
       setTimeout(() => { notice.style.display = 'none'; }, 6000);
       return;
-    }
-
-    progressionLayer = L.layerGroup();
-
-    for (let i = 1; i < centers.length; i++) {
-      const a = centers[i - 1], b = centers[i];
-      const bd = bearingDistance(a.lat, a.lon, b.lat, b.lon);
-      const dtH = Math.max(a.hoursAgoMid - b.hoursAgoMid, 0.1);
-      const speed = bd.dist / dtH; // km/h
-      // Flèche : segment + pointe. Couleur plus vive vers le présent.
-      const t = i / (centers.length - 1);
-      const col = 'rgba(255,' + Math.round(140 - t * 120) + ',30,0.9)';
-
-      L.polyline([[a.lat, a.lon], [b.lat, b.lon]], {
-        pane: 'vectors', color: col, weight: 3, opacity: 0.9
-      }).addTo(progressionLayer);
-
-      // Pointe de flèche (deux petits segments à l'extrémité b)
-      const headLen = Math.min(bd.dist * 0.3, 1.5); // km
-      [-25, 25].forEach(off => {
-        const ang = (bd.bearing + 180 + off) * Math.PI / 180;
-        const R = 6371;
-        const dLat = (headLen / R) * Math.cos(ang) * 180 / Math.PI;
-        const dLon = (headLen / R) * Math.sin(ang) * 180 / Math.PI / Math.cos(b.lat * Math.PI / 180);
-        L.polyline([[b.lat, b.lon], [b.lat + dLat, b.lon + dLon]], {
-          pane: 'vectors', color: col, weight: 3, opacity: 0.9
-        }).addTo(progressionLayer);
-      });
-
-      // Étiquette au milieu : direction + vitesse
-      const midLat = (a.lat + b.lat) / 2, midLon = (a.lon + b.lon) / 2;
-      L.marker([midLat, midLon], {
-        pane: 'vectors', interactive: true,
-        icon: L.divIcon({
-          className: '',
-          html: '<div style="white-space:nowrap;font-size:11px;color:#fff;' +
-            'text-shadow:0 0 3px #000,0 0 3px #000;font-weight:600">→ ' +
-            bearingToCardinal(bd.bearing) + ' · ' + speed.toFixed(1) + ' km/h</div>',
-          iconSize: [0, 0], iconAnchor: [-6, 6]
-        })
-      }).bindPopup(
-        '<b>Progression du cœur du feu</b><br>' +
-        'Direction : ' + bearingToCardinal(bd.bearing) +
-        ' (' + Math.round(bd.bearing) + '° / Nord)<br>' +
-        'Vitesse moyenne : ' + speed.toFixed(1) + ' km/h<br>' +
-        'Déplacement : ' + bd.dist.toFixed(1) + ' km en ' + dtH.toFixed(0) + ' h<br>' +
-        '<small>Barycentre thermique (pondéré FRP), tranches de ' + PROG_BIN_HOURS + ' h.</small>'
-      ).addTo(progressionLayer);
     }
 
     progressionLayer.addTo(map);
