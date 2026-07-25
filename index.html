@@ -602,7 +602,7 @@
   // Une seule date pilote maintenant toute la carte : celle du sélecteur « Jour ».
   // Le WFS et le WMS reçoivent exactement la même date_ech, ce qui évite de
   // superposer une prévision J+1 en points à une valeur J/J-1 dans les polygones.
-  const ATMO_WFS = 'https://data.atmo-france.org/geoserver/ind/ows';
+  const ATMO_WFS = OPENAQ_PROXY + '/atmo';
   const ATMO_COLORS = {
     1: '#50f0e6', 2: '#50ccaa', 3: '#f0e641',
     4: '#ff5050', 5: '#960032', 6: '#872181', 7: '#888888'
