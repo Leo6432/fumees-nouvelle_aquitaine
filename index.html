@@ -114,7 +114,7 @@
       <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra (~10h30)</option>
       <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua (~13h30)</option>
     </select></span>
-    <label class="toggle" title="Détections VIIRS actualisées automatiquement"><input type="checkbox" id="fires" checked>Foyers actuels (48 h)</label>
+    <label class="toggle" title="Détections thermiques MODIS et VIIRS, actualisées automatiquement"><input type="checkbox" id="fires" checked>Foyers actuels (48 h)</label>
     <label class="toggle"><input type="checkbox" id="communes">Indice ATMO par commune</label>
     <span id="pollutant-wrap" style="display:none"><label for="pollutant">Polluant</label>
     <select id="pollutant">
@@ -162,7 +162,7 @@
   <details>
     <summary>Sources &amp; crédits</summary>
     Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS, couleurs vraies — les panaches de fumée sont visibles en gris-bleu).
-    Foyers : détections thermiques VIIRS des dernières 48 h (NASA FIRMS ; rouge = moins de 6 h, orange = moins de 24 h).
+    Foyers : détections thermiques MODIS et VIIRS des dernières 48 h (NASA FIRMS ; rouge = moins de 6 h, orange = moins de 24 h).
     Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
     Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
     Indice ATMO (points) : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL) ; détail par commune sur la <a href="https://www.atmo-nouvelleaquitaine.org/air-commune">carte officielle</a>.
@@ -255,6 +255,25 @@
     return (Date.now() - when.getTime()) / 3600000;
   }
 
+  function formatFireConfidence(row) {
+    const value = String(row.confidence || '').trim();
+    if (!value) return '?';
+
+    // VIIRS utilise généralement l / n / h.
+    const viirsLabels = {
+      l: 'faible',
+      n: 'nominale',
+      h: 'élevée'
+    };
+    const key = value.toLowerCase();
+    if (viirsLabels[key]) return viirsLabels[key] + ' (' + value + ')';
+
+    // MODIS renvoie généralement une confiance numérique.
+    if (/^\d+(\.\d+)?$/.test(value)) return value + ' %';
+
+    return value;
+  }
+
   let firmsLoading = false;
   let firmsLastRefresh = 0;
   const FIRMS_REFRESH_MS = 15 * 60 * 1000;
@@ -275,10 +294,15 @@
     firmsLoading = true;
 
     try {
+      // Chaque source correspond à un flux FIRMS distinct.
+      // Les trois flux VIIRS offrent la meilleure résolution spatiale.
+      // MODIS_NRT ajoute les passages Terra et Aqua, plus grossiers mais utiles
+      // pour compléter la couverture temporelle.
       const sources = [
         'VIIRS_NOAA20_NRT',
         'VIIRS_NOAA21_NRT',
-        'VIIRS_SNPP_NRT'
+        'VIIRS_SNPP_NRT',
+        'MODIS_NRT'
       ];
 
       // FIRMS renvoie trois jours calendaires UTC. La fenêtre glissante
@@ -308,7 +332,20 @@
             resp.headers.get('X-Upstream-Fetched-At') || '?'
           );
 
-          return parseCsv(await resp.text());
+          const rows = parseCsv(await resp.text()).map(row => ({
+            ...row,
+            _firmsSource: source
+          }));
+
+          console.info(
+            'FIRMS',
+            source,
+            ':',
+            rows.length,
+            'détections brutes reçues'
+          );
+
+          return rows;
         })
       );
 
@@ -370,8 +407,10 @@
               .replace(/(..)(..)/, '$1h$2 UTC') +
             '<br>Âge : ' + age.toFixed(1) + ' h' +
             '<br>Satellite : ' + (row.satellite || '?') +
+            '<br>Instrument : ' + (row.instrument || '?') +
+            '<br>Flux FIRMS : ' + (row._firmsSource || '?') +
             '<br>Puissance radiative : ' + frp.toFixed(1) + ' MW' +
-            '<br>Confiance : ' + (row.confidence || '?')
+            '<br>Confiance : ' + formatFireConfidence(row)
           )
           .addTo(nextFireLayer);
 
@@ -407,7 +446,7 @@
 
       if (displayedCount === 0) {
         notice.textContent =
-          'Aucun foyer VIIRS détecté sur la zone durant les dernières 48 h.';
+          'Aucun foyer MODIS ou VIIRS détecté sur la zone durant les dernières 48 h.';
         notice.style.display = 'block';
         setTimeout(() => {
           notice.style.display = 'none';
