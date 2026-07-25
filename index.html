@@ -171,18 +171,50 @@
     background:rgba(26,33,41,.94);
     border:1px solid #38424e;
     border-radius:8px;
-    padding:9px 10px;
+    padding:6px;
     color:var(--smoke);
     font-size:.72rem;
-    line-height:1.35;
+    line-height:1.3;
     min-width:190px;
     box-shadow:0 1px 5px rgba(0,0,0,.35);
   }
   .firms-legend.is-hidden{display:none}
-  .firms-legend b{color:var(--paper);font-weight:600}
+
+  .firms-legend-toggle{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    padding:3px 4px;
+    border:0;
+    background:transparent;
+    color:var(--paper);
+    font:inherit;
+    font-weight:600;
+    text-align:left;
+    cursor:pointer;
+  }
+  .firms-legend-toggle:hover{
+    background:rgba(255,255,255,.07);
+    border-radius:5px;
+  }
+  .firms-title-mobile{display:none}
+  .firms-chevron{
+    color:var(--ember);
+    flex:0 0 auto;
+  }
+
+  .firms-legend-body{
+    margin-top:3px;
+  }
+  .firms-legend.is-collapsed .firms-legend-body{
+    display:none;
+  }
+
   .firms-legend .firms-help{
     display:block;
-    margin:3px 0 7px;
+    margin:3px 4px 7px;
     max-width:210px;
   }
   .firms-legend .firms-all,
@@ -226,6 +258,56 @@
     color:var(--smoke);
     min-width:24px;
     text-align:right;
+  }
+
+  /* Sur téléphone : petit bouton replié par défaut.
+     Une fois ouverte, la légende reste étroite et le texte d'aide disparaît. */
+  @media (max-width:768px){
+    .firms-legend{
+      min-width:0;
+      width:148px;
+      padding:4px;
+      font-size:.62rem;
+      line-height:1.12;
+      border-radius:7px;
+    }
+    .firms-legend.is-collapsed{
+      width:auto;
+      padding:2px 4px;
+    }
+    .firms-title-desktop{display:none}
+    .firms-title-mobile{display:inline}
+    .firms-legend-toggle{
+      min-height:26px;
+      padding:3px 5px;
+      gap:6px;
+      white-space:nowrap;
+    }
+    .firms-legend .firms-help{
+      display:none;
+    }
+    .firms-legend-body{
+      margin-top:2px;
+      max-height:220px;
+      overflow-y:auto;
+      scrollbar-width:thin;
+    }
+    .firms-legend .firms-all,
+    .firms-legend .firms-bin{
+      gap:4px;
+      padding:2px 3px;
+      margin:0;
+      font-size:.62rem;
+    }
+    .firms-legend .firms-sw{
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+    }
+    .firms-legend .firms-count{
+      min-width:20px;
+      font-size:.59rem;
+    }
   }
 </style>
 </head>
@@ -347,9 +429,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
   // ---- Carte centrée sur la Nouvelle-Aquitaine ----
-  const map = L.map('map', { zoomControl: true }).setView([44.9, 0.0], 7);
+  const mobileView = window.matchMedia('(max-width: 768px)').matches;
 
-  // Légende FIRMS placée dans la carte, sous les boutons de zoom.
+  // Le zoom passe à droite sur téléphone pour libérer le coin de la légende.
+  const map = L.map('map', { zoomControl: false }).setView([44.9, 0.0], 7);
+  L.control.zoom({
+    position: mobileView ? 'topright' : 'topleft'
+  }).addTo(map);
+
+  // La légende FIRMS reste en haut à gauche.
   const firmsLegendControl = L.control({ position: 'topleft' });
   let firmsLegendEl = null;
 
@@ -436,6 +524,9 @@
   let fireRecords = [];
   let activeFireAgeBin = 'all';
 
+  // Sur mobile, la légende n'occupe qu'un petit bouton au chargement.
+  let firmsLegendCollapsed = mobileView;
+
   function getFireAgeBin(age) {
     return FIRE_AGE_BINS.find(bin => age >= bin.min && age < bin.max) || null;
   }
@@ -446,35 +537,71 @@
     const firesOn = document.getElementById('fires').checked;
     firmsLegendEl.classList.toggle('is-hidden', !firesOn);
     firmsLegendEl.classList.toggle('has-filter', activeFireAgeBin !== 'all');
+    firmsLegendEl.classList.toggle('is-collapsed', firmsLegendCollapsed);
 
     if (!firesOn) return;
 
-    const counts = Object.fromEntries(FIRE_AGE_BINS.map(bin => [bin.id, 0]));
+    const counts = Object.fromEntries(
+      FIRE_AGE_BINS.map(bin => [bin.id, 0])
+    );
+
     fireRecords.forEach(rec => {
       if (counts[rec.ageBin] != null) counts[rec.ageBin]++;
     });
 
+    const visibleLegendCount =
+      activeFireAgeBin === 'all'
+        ? fireRecords.length
+        : (counts[activeFireAgeBin] || 0);
+
     firmsLegendEl.innerHTML =
-      '<b>Âge des détections FIRMS</b>' +
-      '<small class="firms-help">Rouge : plus récent · jaune clair : plus ancien.<br>' +
-      'Clique sur une couleur pour isoler cette période.</small>' +
-      '<button type="button" class="firms-all ' +
-        (activeFireAgeBin === 'all' ? 'is-active' : '') +
-        '" data-fire-bin="all" aria-pressed="' +
-        (activeFireAgeBin === 'all') + '">' +
-        '<span class="firms-label">Tous les foyers</span>' +
-        '<span class="firms-count">' + fireRecords.length + '</span>' +
+      '<button type="button" class="firms-legend-toggle" ' +
+        'aria-expanded="' + (!firmsLegendCollapsed) + '">' +
+        '<span class="firms-title-desktop">Âge des détections FIRMS</span>' +
+        '<span class="firms-title-mobile">FIRMS · ' +
+          visibleLegendCount +
+        '</span>' +
+        '<span class="firms-chevron">' +
+          (firmsLegendCollapsed ? '▸' : '▾') +
+        '</span>' +
       '</button>' +
-      FIRE_AGE_BINS.map(bin =>
-        '<button type="button" class="firms-bin ' +
-          (activeFireAgeBin === bin.id ? 'is-active' : '') +
-          '" data-fire-bin="' + bin.id + '" aria-pressed="' +
-          (activeFireAgeBin === bin.id) + '">' +
-          '<span class="firms-sw" style="background:' + bin.color + '"></span>' +
-          '<span class="firms-label">' + bin.label + '</span>' +
-          '<span class="firms-count">' + counts[bin.id] + '</span>' +
-        '</button>'
-      ).join('');
+
+      '<div class="firms-legend-body">' +
+        '<small class="firms-help">' +
+          'Rouge : plus récent · jaune clair : plus ancien.<br>' +
+          'Clique sur une couleur pour isoler cette période.' +
+        '</small>' +
+
+        '<button type="button" class="firms-all ' +
+          (activeFireAgeBin === 'all' ? 'is-active' : '') +
+          '" data-fire-bin="all" aria-pressed="' +
+          (activeFireAgeBin === 'all') + '">' +
+          '<span class="firms-label">Tous les foyers</span>' +
+          '<span class="firms-count">' + fireRecords.length + '</span>' +
+        '</button>' +
+
+        FIRE_AGE_BINS.map(bin =>
+          '<button type="button" class="firms-bin ' +
+            (activeFireAgeBin === bin.id ? 'is-active' : '') +
+            '" data-fire-bin="' + bin.id + '" aria-pressed="' +
+            (activeFireAgeBin === bin.id) + '">' +
+            '<span class="firms-sw" style="background:' +
+              bin.color +
+            '"></span>' +
+            '<span class="firms-label">' + bin.label + '</span>' +
+            '<span class="firms-count">' + counts[bin.id] + '</span>' +
+          '</button>'
+        ).join('') +
+      '</div>';
+
+    const toggle = firmsLegendEl.querySelector('.firms-legend-toggle');
+
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        firmsLegendCollapsed = !firmsLegendCollapsed;
+        updateFirmsLegend();
+      });
+    }
 
     firmsLegendEl.querySelectorAll('[data-fire-bin]').forEach(button => {
       button.addEventListener('click', () => {
@@ -487,6 +614,10 @@
             : requested;
 
         renderFireLayer();
+
+        // Après un choix sur téléphone, on replie automatiquement la légende.
+        if (mobileView) firmsLegendCollapsed = true;
+
         updateFirmsLegend();
       });
     });
