@@ -1,0 +1,77 @@
+# ============================================================
+# fire-propagation — configuration
+# Analyse de la progression d'un incendie à partir de détections
+# thermiques FIRMS (temps d'arrivée, isochrones, rose de propagation,
+# corrélation avec le vent).
+# ============================================================
+
+project_name: fire_propagation_gironde_2026
+
+# --- Zone et période d'étude ---------------------------------
+# bbox en WGS84 : ouest, sud, est, nord
+bbox: [-1.4, 44.4, -0.4, 45.1]      # feu de Gironde (Le Porge / Lacanau)
+
+# Fenêtre temporelle analysée (UTC). Laisser 'auto' pour prendre
+# les dernières 48 h disponibles dans le fichier FIRMS.
+time_window:
+  start: "auto"
+  end: "auto"
+  max_hours: 48
+
+# --- Projection métrique -------------------------------------
+# Toutes les distances/interpolations se font en projeté, pas en degrés.
+crs_metric: "EPSG:2154"   # Lambert-93 (France métropolitaine)
+crs_geographic: "EPSG:4326"
+
+# --- Clustering (isoler l'incendie principal) ----------------
+cluster:
+  radius_km: 10          # rayon d'agrégation des détections d'un même feu
+  min_points: 15         # taille minimale d'un cluster retenu
+  max_clusters: 2        # incendies principaux conservés
+
+# --- Grille d'analyse ----------------------------------------
+grid:
+  resolution_m: 250      # taille de cellule de la grille d'interpolation
+  margin_m: 12000        # grille plus large que le domaine de support
+  support_buffer_m: 8000 # tampon autour de l'enveloppe des détections
+
+# --- Krigeage ------------------------------------------------
+kriging:
+  variogram_model: "spherical"   # spherical | exponential | gaussian | linear
+  nlags: 12
+  weight: true                   # pondération des lags proches
+  # anisotropie optionnelle (utile si le feu est très directionnel) :
+  anisotropy_scaling: 1.0
+  anisotropy_angle: 0.0
+  # sous-échantillonnage si trop de points (le krigeage est en O(n^3))
+  max_points: 800
+  thinning_cell_m: 500   # première détection retenue par cellule spatiale
+
+# --- Isochrones ----------------------------------------------
+isochrones:
+  step_hours: 6
+  smooth_sigma: 1.0
+  closure_tolerance_cells: 1.5
+  boundary_guard_cells: 3
+  max_distance_to_detection_km: 6.0
+  min_length_km: 2.0
+  min_area_km2: 0.5
+  simplify_m: 75
+  max_ros_kmh: 5.0
+
+# --- Rose de propagation -------------------------------------
+rose:
+  n_sectors: 16          # nombre de secteurs azimutaux
+
+# --- Vent (corrélation) --------------------------------------
+wind:
+  source: "open-meteo"   # open-meteo (ECMWF IFS) | era5 | csv
+  # pour open-meteo : point représentatif (centre du feu par défaut)
+  hourly_past_days: 2
+
+# --- Sorties -------------------------------------------------
+outputs:
+  processed_dir: "data/processed"
+  web_dir: "data/web"
+  # formats d'export des isochrones et du champ de propagation
+  formats: ["geojson", "gpkg"]
