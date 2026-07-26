@@ -86,14 +86,65 @@ def main():
                 errors="coerce",
             )
 
-    # Fenêtre temporelle
-    df = df[(df["hours_ago"] >= -0.5) & (df["hours_ago"] <= max_hours)].copy()
+    # Écarter uniquement les dates futures aberrantes.
+    # Les détections anciennes sont conservées dans une archive cumulative.
+    df = df[df["hours_ago"] >= -0.5].copy()
 
-    # Dédoublonnage grossier (même point, même heure, sources multiples)
-    df["rlat"] = df["lat"].round(3)
-    df["rlon"] = df["lon"].round(3)
-    df = df.sort_values("frp", ascending=False).drop_duplicates(
-        subset=["rlat", "rlon", "acq_date", "acq_time"]
+    out_dir = resolve(cfg, "data/raw")
+    os.makedirs(out_dir, exist_ok=True)
+
+    out = os.path.join(out_dir, "firms_detections.csv")
+    history_out = os.path.join(out_dir, "firms_detections_history.csv")
+
+    # Initialisation de l'historique :
+    # - archive cumulative si elle existe déjà ;
+    # - sinon fichier de travail existant, afin de ne rien perdre
+    #   lors de la première exécution après cette modification.
+    history = pd.DataFrame()
+    history_seed = history_out if os.path.exists(history_out) else out
+
+    if os.path.exists(history_seed):
+        try:
+            history = pd.read_csv(history_seed)
+            print(
+                f"Historique chargé : {len(history)} détections "
+                f"depuis {history_seed}"
+            )
+        except Exception as e:  # noqa: BLE001
+            print(f"Historique illisible, ignoré : {e}")
+            history = pd.DataFrame()
+
+    # Fusion de l'historique existant et des données nouvellement téléchargées.
+    if len(history):
+        df = pd.concat([history, df], ignore_index=True, sort=False)
+
+    # Normalisation temporelle après fusion.
+    df["dt_utc"] = pd.to_datetime(df["dt_utc"], utc=True, errors="coerce")
+    df = df.dropna(subset=["dt_utc", "lat", "lon"]).copy()
+
+    now = dt.datetime.now(dt.timezone.utc)
+    df["hours_ago"] = (
+        now - df["dt_utc"]
+    ).dt.total_seconds() / 3600.0
+
+    df["frp"] = pd.to_numeric(
+        df.get("frp", 1),
+        errors="coerce",
+    ).fillna(1.0)
+
+    # Dédoublonnage grossier :
+    # même position arrondie et même heure d'acquisition.
+    # La détection avec le FRP maximal est conservée.
+    df["rlat"] = pd.to_numeric(df["lat"], errors="coerce").round(3)
+    df["rlon"] = pd.to_numeric(df["lon"], errors="coerce").round(3)
+
+    df = (
+        df.sort_values("frp", ascending=False)
+        .drop_duplicates(
+            subset=["rlat", "rlon", "acq_date", "acq_time"],
+            keep="first",
+        )
+        .sort_values("dt_utc")
     )
 
     keep = [
@@ -114,12 +165,26 @@ def main():
     keep = [c for c in keep if c in df.columns]
     df = df[keep].reset_index(drop=True)
 
-    out_dir = resolve(cfg, "data/raw")
-    os.makedirs(out_dir, exist_ok=True)
-    out = os.path.join(out_dir, "firms_detections.csv")
-    df.to_csv(out, index=False)
-    print(f"\n{len(df)} détections retenues (<= {max_hours} h)")
-    print(f"écrit : {out}")
+    # L'archive cumulative est la source de vérité et ne perd
+    # aucune détection déjà enregistrée.
+    df.to_csv(history_out, index=False)
+
+    # Le fichier de travail reste limité à la fenêtre opérationnelle
+    # configurée, afin de préserver le comportement des autres scripts.
+    recent = df.loc[
+        (df["hours_ago"] >= -0.5)
+        & (df["hours_ago"] <= max_hours)
+    ].copy()
+
+    recent.to_csv(out, index=False)
+
+    print(f"\n{len(df)} détections dans l'historique cumulatif")
+    print(
+        f"{len(recent)} détections dans la fenêtre "
+        f"opérationnelle de {max_hours} h"
+    )
+    print(f"archive cumulative : {history_out}")
+    print(f"vue opérationnelle : {out}")
 
 
 if __name__ == "__main__":

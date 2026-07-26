@@ -33,6 +33,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r pipeline/requirements.txt
 
+      - name: Restore cumulative FIRMS state
+        uses: actions/cache@v4
+        with:
+          path: |
+            pipeline/data/raw/firms_detections_history.csv
+            pipeline/data/processed/detection_envelopes.gpkg
+          key: firms-cumulative-state-${{ github.run_id }}
+          restore-keys: |
+            firms-cumulative-state-
+
       - name: Run FIRMS progression pipeline
         env:
           MPLBACKEND: Agg
@@ -46,11 +56,25 @@ jobs:
             pipeline/data/web/fire_progression_arrival_v1_manifest.json \
             data/fire-progression/
 
+          cp \
+            pipeline/data/web/detection_envelopes.geojson \
+            detection_envelopes.geojson
+
+      - name: Save cumulative FIRMS state
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            pipeline/data/raw/firms_detections_history.csv
+            pipeline/data/processed/detection_envelopes.gpkg
+          key: firms-cumulative-state-${{ github.run_id }}
+
       - name: Commit updated progression
         run: |
           if git diff --quiet -- \
             data/fire-progression/fire_progression_arrival_v1.geojson \
-            data/fire-progression/fire_progression_arrival_v1_manifest.json
+            data/fire-progression/fire_progression_arrival_v1_manifest.json \
+            detection_envelopes.geojson
           then
             echo "Aucun nouveau passage FIRMS : aucun commit."
             exit 0
@@ -61,7 +85,8 @@ jobs:
 
           git add \
             data/fire-progression/fire_progression_arrival_v1.geojson \
-            data/fire-progression/fire_progression_arrival_v1_manifest.json
+            data/fire-progression/fire_progression_arrival_v1_manifest.json \
+            detection_envelopes.geojson
 
           git commit -m "Update FIRMS fire progression"
           git push
