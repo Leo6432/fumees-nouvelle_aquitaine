@@ -6,6 +6,7 @@ import os
 import runpy
 import warnings
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from pyproj import Transformer
@@ -158,102 +159,52 @@ def load_firms_points():
     )
 
 
-def local_cluster_extent_metric(coordinates):
+def load_cumulative_firms_extents():
     """
-    Produit une enveloppe arrondie par cluster local.
-
-    Les clusters restent séparés et tous les centres
-    FIRMS sont englobés.
+    Charge les emprises cumulées déjà calculées et validées
+    par 03_cumulative_detection_envelopes.py.
     """
-    if not len(coordinates):
-        return None
+    path = Path(
+        "data/processed/detection_envelopes.gpkg"
+    )
 
-    tree = cKDTree(coordinates)
-    parent = list(range(len(coordinates)))
+    if not path.exists():
+        raise FileNotFoundError(
+            "Emprises cumulées absentes : "
+            "lancer 03_cumulative_detection_envelopes.py."
+        )
 
-    def find(index):
-        while parent[index] != index:
-            parent[index] = parent[
-                parent[index]
+    extents = gpd.read_file(
+        path,
+        layer="cumulative_detection_envelopes",
+    ).to_crs("EPSG:2154")
+
+    extents["observed_until_dt"] = pd.to_datetime(
+        extents["observed_until_utc"],
+        utc=True,
+        errors="coerce",
+    )
+
+    return (
+        extents.dropna(
+            subset=["observed_until_dt", "geometry"]
+        )
+        .sort_values(
+            [
+                "cluster_id",
+                "observed_until_dt",
+                "snapshot_index",
             ]
-            index = parent[index]
-
-        return index
-
-    def union(left, right):
-        root_left = find(left)
-        root_right = find(right)
-
-        if root_left != root_right:
-            parent[root_right] = root_left
-
-    for left, right in tree.query_pairs(
-        r=LOCAL_CLUSTER_LINK_M
-    ):
-        union(left, right)
-
-    clusters = {}
-
-    for index in range(len(coordinates)):
-        clusters.setdefault(
-            find(index),
-            [],
-        ).append(index)
-
-    envelopes = []
-
-    for indexes in clusters.values():
-        buffered_points = [
-            Point(
-                coordinates[index, 0],
-                coordinates[index, 1],
-            ).buffer(
-                POINT_BUFFER_M,
-                resolution=16,
-            )
-            for index in indexes
-        ]
-
-        raw_geometry = unary_union(
-            buffered_points
         )
-
-        smooth_geometry = (
-            raw_geometry
-            .buffer(
-                SMOOTH_OUT_M,
-                resolution=24,
-                join_style=1,
-            )
-            .buffer(
-                -SMOOTH_IN_M,
-                resolution=24,
-                join_style=1,
-            )
-        )
-
-        if smooth_geometry.is_empty:
-            smooth_geometry = raw_geometry
-
-        envelopes.append(
-            smooth_geometry.simplify(
-                100.0,
-                preserve_topology=True,
-            )
-        )
-
-    geometry = unary_union(envelopes)
-
-    if not geometry.is_valid:
-        geometry = geometry.buffer(0)
-
-    return geometry
+        .reset_index(drop=True)
+    )
 
 
-def firms_extent_for_time(points, timestamp):
+def firms_extent_for_time(extents, timestamp):
     """
-    Recalcule l'emprise cumulative en utilisant uniquement
-    les détections acquises jusqu'au passage sélectionné.
+    Pour chaque cluster, sélectionne la dernière emprise
+    cumulative disponible au passage demandé, puis fusionne
+    les clusters actifs.
     """
     cutoff = pd.Timestamp(timestamp)
 
@@ -262,34 +213,45 @@ def firms_extent_for_time(points, timestamp):
     else:
         cutoff = cutoff.tz_convert("UTC")
 
-    selected = (
-        points.loc[
-            points["pass_time_utc"] <= cutoff,
-            ["x", "y"],
-        ]
-        .drop_duplicates()
-    )
+    available = extents.loc[
+        extents["observed_until_dt"] <= cutoff
+    ].copy()
 
-    coordinates = selected[
-        ["x", "y"]
-    ].to_numpy()
-
-    metric_geometry = local_cluster_extent_metric(
-        coordinates
-    )
-
-    if (
-        metric_geometry is None
-        or metric_geometry.is_empty
-    ):
+    if available.empty:
         return None, 0
+
+    selected = (
+        available.groupby(
+            "cluster_id",
+            as_index=False,
+        )
+        .tail(1)
+        .copy()
+    )
+
+    metric_geometry = unary_union(
+        selected.geometry.to_list()
+    )
+
+    if metric_geometry.is_empty:
+        return None, 0
+
+    if not metric_geometry.is_valid:
+        metric_geometry = metric_geometry.buffer(0)
 
     geometry_wgs84 = shapely_transform(
         TO_WGS84.transform,
         metric_geometry,
     )
 
-    return geometry_wgs84, len(selected)
+    point_count = int(
+        selected[
+            "supported_detections_cumulative"
+        ].sum()
+    )
+
+    return geometry_wgs84, point_count
+
 
 arrival_index = np.full(
     records[0]["historical"].shape,
@@ -308,8 +270,7 @@ for index, record in enumerate(records):
 
 features = []
 manifest_snapshots = []
-firms_points = load_firms_points()
-
+firms_extents = load_cumulative_firms_extents()
 
 
 # Une seule géométrie par étape de première détection.
@@ -408,7 +369,7 @@ for record in records:
 
     extent_geometry, extent_point_count = (
         firms_extent_for_time(
-            firms_points,
+            firms_extents,
             timestamp,
         )
     )

@@ -27,7 +27,7 @@ PROXY = os.environ.get(
 SOURCES = ["VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT", "VIIRS_SNPP_NRT", "MODIS_NRT"]
 
 
-def fetch_source(source: str, bbox: list[float], days: int = 3) -> pd.DataFrame:
+def fetch_source(source: str, bbox: list[float], days: int = 5) -> pd.DataFrame:
     """Récupère un flux FIRMS et renvoie un DataFrame (ou vide)."""
     west, south, east, north = bbox
     bbox_str = f"{west},{south},{east},{north}"

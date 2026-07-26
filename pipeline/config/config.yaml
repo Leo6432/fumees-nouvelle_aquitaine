@@ -14,8 +14,12 @@ bbox: [-1.4, 44.4, -0.4, 45.1]      # feu de Gironde (Le Porge / Lacanau)
 # Fenêtre temporelle analysée (UTC). Laisser 'auto' pour prendre
 # les dernières 48 h disponibles dans le fichier FIRMS.
 time_window:
-  start: "auto"
+  # Origine historique du feu :
+  # 22 juillet 2026 à 14 h en France métropolitaine.
+  start: "2026-07-22T12:00:00Z"
   end: "auto"
+
+  # Fenêtre réservée aux foyers actifs affichés sur la carte.
   max_hours: 48
 
 # --- Projection métrique -------------------------------------

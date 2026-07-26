@@ -13,7 +13,7 @@ from common import fires_to_metric, load_config
 INPUT = Path(
     os.environ.get(
         "SUPPORT_INPUT",
-        "data/raw/firms_detections.csv",
+        "data/raw/firms_detections_history.csv",
     )
 )
 
@@ -104,6 +104,29 @@ def main() -> None:
             "dt_utc",
         ]
     ).copy()
+
+    start_value = cfg["time_window"].get("start", "auto")
+
+    if start_value != "auto":
+        start_utc = pd.Timestamp(start_value)
+
+        if start_utc.tzinfo is None:
+            start_utc = start_utc.tz_localize("UTC")
+        else:
+            start_utc = start_utc.tz_convert("UTC")
+
+        df = (
+            df.loc[
+                df["dt_utc"] >= start_utc
+            ]
+            .copy()
+            .reset_index(drop=True)
+        )
+
+        print(
+            "Origine historique de la progression :",
+            start_utc.isoformat(),
+        )
 
     df = fires_to_metric(
         df,

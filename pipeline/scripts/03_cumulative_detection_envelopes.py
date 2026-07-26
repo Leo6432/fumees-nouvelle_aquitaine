@@ -420,6 +420,25 @@ def main() -> None:
         subset=["dt_utc", "lon", "lat"]
     ).reset_index(drop=True)
 
+    start_value = cfg["time_window"].get("start", "auto")
+
+    if start_value != "auto":
+        start_utc = pd.Timestamp(start_value)
+
+        if start_utc.tzinfo is None:
+            start_utc = start_utc.tz_localize("UTC")
+        else:
+            start_utc = start_utc.tz_convert("UTC")
+
+        raw = raw.loc[
+            raw["dt_utc"] >= start_utc
+        ].copy()
+
+        print(
+            "Origine historique des emprises :",
+            start_utc.isoformat(),
+        )
+
     raw = fires_to_metric(raw, cfg)
 
     clustered = assign_spatial_clusters(
