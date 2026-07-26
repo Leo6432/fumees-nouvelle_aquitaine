@@ -7,9 +7,11 @@ import runpy
 import warnings
 
 import numpy as np
+import pandas as pd
 from pyproj import Transformer
 from rasterio.features import shapes as raster_shapes
-from shapely.geometry import mapping, shape
+from scipy.spatial import cKDTree
+from shapely.geometry import Point, mapping, shape
 from shapely.ops import transform as shapely_transform, unary_union
 
 
@@ -95,6 +97,200 @@ def mask_to_wgs84(mask):
     )
 
 
+
+FIRMS_POINTS_INPUT = Path(
+    "data/processed/"
+    "spatiotemporal_support_causal_passes_v1.csv"
+)
+
+FIRMS_EXTENT_METHOD = (
+    "cumulative_local_point_clusters_v2"
+)
+
+# Connexion maximale entre détections d'un même incendie local.
+LOCAL_CLUSTER_LINK_M = 10_000.0
+
+# Marge englobant chaque centre de détection.
+POINT_BUFFER_M = 900.0
+
+# Fermeture arrondie à l'intérieur de chaque cluster.
+SMOOTH_OUT_M = 2_500.0
+SMOOTH_IN_M = 2_000.0
+
+
+def load_firms_points():
+    points = pd.read_csv(
+        FIRMS_POINTS_INPUT,
+        usecols=[
+            "x",
+            "y",
+            "pass_time_utc",
+        ],
+    )
+
+    points["x"] = pd.to_numeric(
+        points["x"],
+        errors="coerce",
+    )
+
+    points["y"] = pd.to_numeric(
+        points["y"],
+        errors="coerce",
+    )
+
+    points["pass_time_utc"] = pd.to_datetime(
+        points["pass_time_utc"],
+        utc=True,
+        errors="coerce",
+    )
+
+    return (
+        points
+        .dropna(
+            subset=[
+                "x",
+                "y",
+                "pass_time_utc",
+            ]
+        )
+        .sort_values("pass_time_utc")
+        .reset_index(drop=True)
+    )
+
+
+def local_cluster_extent_metric(coordinates):
+    """
+    Produit une enveloppe arrondie par cluster local.
+
+    Les clusters restent séparés et tous les centres
+    FIRMS sont englobés.
+    """
+    if not len(coordinates):
+        return None
+
+    tree = cKDTree(coordinates)
+    parent = list(range(len(coordinates)))
+
+    def find(index):
+        while parent[index] != index:
+            parent[index] = parent[
+                parent[index]
+            ]
+            index = parent[index]
+
+        return index
+
+    def union(left, right):
+        root_left = find(left)
+        root_right = find(right)
+
+        if root_left != root_right:
+            parent[root_right] = root_left
+
+    for left, right in tree.query_pairs(
+        r=LOCAL_CLUSTER_LINK_M
+    ):
+        union(left, right)
+
+    clusters = {}
+
+    for index in range(len(coordinates)):
+        clusters.setdefault(
+            find(index),
+            [],
+        ).append(index)
+
+    envelopes = []
+
+    for indexes in clusters.values():
+        buffered_points = [
+            Point(
+                coordinates[index, 0],
+                coordinates[index, 1],
+            ).buffer(
+                POINT_BUFFER_M,
+                resolution=16,
+            )
+            for index in indexes
+        ]
+
+        raw_geometry = unary_union(
+            buffered_points
+        )
+
+        smooth_geometry = (
+            raw_geometry
+            .buffer(
+                SMOOTH_OUT_M,
+                resolution=24,
+                join_style=1,
+            )
+            .buffer(
+                -SMOOTH_IN_M,
+                resolution=24,
+                join_style=1,
+            )
+        )
+
+        if smooth_geometry.is_empty:
+            smooth_geometry = raw_geometry
+
+        envelopes.append(
+            smooth_geometry.simplify(
+                100.0,
+                preserve_topology=True,
+            )
+        )
+
+    geometry = unary_union(envelopes)
+
+    if not geometry.is_valid:
+        geometry = geometry.buffer(0)
+
+    return geometry
+
+
+def firms_extent_for_time(points, timestamp):
+    """
+    Recalcule l'emprise cumulative en utilisant uniquement
+    les détections acquises jusqu'au passage sélectionné.
+    """
+    cutoff = pd.Timestamp(timestamp)
+
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.tz_localize("UTC")
+    else:
+        cutoff = cutoff.tz_convert("UTC")
+
+    selected = (
+        points.loc[
+            points["pass_time_utc"] <= cutoff,
+            ["x", "y"],
+        ]
+        .drop_duplicates()
+    )
+
+    coordinates = selected[
+        ["x", "y"]
+    ].to_numpy()
+
+    metric_geometry = local_cluster_extent_metric(
+        coordinates
+    )
+
+    if (
+        metric_geometry is None
+        or metric_geometry.is_empty
+    ):
+        return None, 0
+
+    geometry_wgs84 = shapely_transform(
+        TO_WGS84.transform,
+        metric_geometry,
+    )
+
+    return geometry_wgs84, len(selected)
+
 arrival_index = np.full(
     records[0]["historical"].shape,
     -1,
@@ -112,6 +308,8 @@ for index, record in enumerate(records):
 
 features = []
 manifest_snapshots = []
+firms_points = load_firms_points()
+
 
 
 # Une seule géométrie par étape de première détection.
@@ -207,6 +405,63 @@ for record in records:
         ] = record["plus_1h"]
 
     snapshot_categories = []
+
+    extent_geometry, extent_point_count = (
+        firms_extent_for_time(
+            firms_points,
+            timestamp,
+        )
+    )
+
+    if extent_geometry is not None:
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "category":
+                    "firms_extent_snapshot",
+
+                "snapshot_index":
+                    snapshot_index,
+
+                "pass_time_utc":
+                    timestamp.isoformat(),
+
+                "dt_local":
+                    local_time.isoformat(),
+
+                "label":
+                    "Emprise FIRMS cumulée à ce passage",
+
+                "interpretation":
+                    "Enveloppe des détections FIRMS, "
+                    "pas une surface brûlée",
+
+                "cumulative":
+                    True,
+
+                "point_count":
+                    int(extent_point_count),
+
+                "extent_method":
+                    FIRMS_EXTENT_METHOD,
+
+                "local_cluster_link_m":
+                    LOCAL_CLUSTER_LINK_M,
+
+                "model_version":
+                    "fire_progression_arrival_v1",
+            },
+            "geometry":
+                mapping(extent_geometry),
+        })
+
+        snapshot_categories.append({
+            "category":
+                "firms_extent_snapshot",
+
+            "point_count":
+                int(extent_point_count),
+        })
 
     for category, mask in categories.items():
         geometry = mask_to_wgs84(mask)
@@ -323,6 +578,7 @@ manifest = {
         "représentée par l’âge de première détection.",
 
     "display_layers": [
+        "firms_extent_snapshot",
         "arrival_surface",
         "temporal_isolines",
         "observed_front",
