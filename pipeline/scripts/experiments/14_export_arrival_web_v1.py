@@ -218,7 +218,7 @@ def firms_extent_for_time(extents, timestamp):
     ].copy()
 
     if available.empty:
-        return None, 0
+        return None, 0, None
 
     selected = (
         available.groupby(
@@ -234,10 +234,17 @@ def firms_extent_for_time(extents, timestamp):
     )
 
     if metric_geometry.is_empty:
-        return None, 0
+        return None, 0, None
 
     if not metric_geometry.is_valid:
         metric_geometry = metric_geometry.buffer(0)
+
+    # Simplification purement graphique pour l'export web.
+    # Le GPKG scientifique reste inchangé.
+    metric_geometry = metric_geometry.simplify(
+        30.0,
+        preserve_topology=True,
+    )
 
     geometry_wgs84 = shapely_transform(
         TO_WGS84.transform,
@@ -250,7 +257,21 @@ def firms_extent_for_time(extents, timestamp):
         ].sum()
     )
 
-    return geometry_wgs84, point_count
+    extent_state_key = tuple(
+        sorted(
+            (
+                int(row.cluster_id),
+                int(row.snapshot_index),
+            )
+            for row in selected.itertuples()
+        )
+    )
+
+    return (
+        geometry_wgs84,
+        point_count,
+        extent_state_key,
+    )
 
 
 arrival_index = np.full(
@@ -271,6 +292,7 @@ for index, record in enumerate(records):
 features = []
 manifest_snapshots = []
 firms_extents = load_cumulative_firms_extents()
+last_firms_extent_state_key = None
 
 
 # Une seule géométrie par étape de première détection.
@@ -367,54 +389,64 @@ for record in records:
 
     snapshot_categories = []
 
-    extent_geometry, extent_point_count = (
-        firms_extent_for_time(
-            firms_extents,
-            timestamp,
-        )
+    (
+        extent_geometry,
+        extent_point_count,
+        extent_state_key,
+    ) = firms_extent_for_time(
+        firms_extents,
+        timestamp,
     )
 
     if extent_geometry is not None:
-        features.append({
-            "type": "Feature",
-            "properties": {
-                "category":
-                    "firms_extent_snapshot",
+        if (
+            extent_state_key
+            != last_firms_extent_state_key
+        ):
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "category":
+                        "firms_extent_snapshot",
 
-                "snapshot_index":
-                    snapshot_index,
+                    "snapshot_index":
+                        snapshot_index,
 
-                "pass_time_utc":
-                    timestamp.isoformat(),
+                    "pass_time_utc":
+                        timestamp.isoformat(),
 
-                "dt_local":
-                    local_time.isoformat(),
+                    "dt_local":
+                        local_time.isoformat(),
 
-                "label":
-                    "Emprise FIRMS cumulée à ce passage",
+                    "label":
+                        "Emprise FIRMS cumulée à ce passage",
 
-                "interpretation":
-                    "Enveloppe des détections FIRMS, "
-                    "pas une surface brûlée",
+                    "interpretation":
+                        "Enveloppe des détections FIRMS, "
+                        "pas une surface brûlée",
 
-                "cumulative":
-                    True,
+                    "cumulative":
+                        True,
 
-                "point_count":
-                    int(extent_point_count),
+                    "point_count":
+                        int(extent_point_count),
 
-                "extent_method":
-                    FIRMS_EXTENT_METHOD,
+                    "extent_method":
+                        FIRMS_EXTENT_METHOD,
 
-                "local_cluster_link_m":
-                    LOCAL_CLUSTER_LINK_M,
+                    "local_cluster_link_m":
+                        LOCAL_CLUSTER_LINK_M,
 
-                "model_version":
-                    "fire_progression_arrival_v1",
-            },
-            "geometry":
-                mapping(extent_geometry),
-        })
+                    "model_version":
+                        "fire_progression_arrival_v1",
+                },
+                "geometry":
+                    mapping(extent_geometry),
+            })
+
+            last_firms_extent_state_key = (
+                extent_state_key
+            )
 
         snapshot_categories.append({
             "category":

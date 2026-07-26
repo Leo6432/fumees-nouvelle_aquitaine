@@ -1683,19 +1683,44 @@
         );
 
       const extentFeature =
-        fireProgressionData.features.find(
-          feature => {
+        fireProgressionData.features.reduce(
+          (best, feature) => {
             const properties =
               feature.properties || {};
 
-            return (
-              properties.category ===
-                'firms_extent_snapshot' &&
-              Number(
-                properties.snapshot_index
-              ) === finalSnapshotIndex
+            if (
+              properties.category !==
+                'firms_extent_snapshot'
+            ) {
+              return best;
+            }
+
+            const featureIndex = Number(
+              properties.snapshot_index
             );
-          }
+
+            if (
+              !Number.isFinite(featureIndex) ||
+              featureIndex > finalSnapshotIndex
+            ) {
+              return best;
+            }
+
+            if (
+              !best ||
+              featureIndex >
+                Number(
+                  (
+                    best.properties || {}
+                  ).snapshot_index
+                )
+            ) {
+              return feature;
+            }
+
+            return best;
+          },
+          null
         );
 
       if (!extentFeature) return;
@@ -4061,19 +4086,44 @@
 
     if (showExtent) {
       const extentFeature =
-        fireProgressionData.features.find(
-          feature => {
+        fireProgressionData.features.reduce(
+          (best, feature) => {
             const properties =
               feature.properties || {};
 
-            return (
-              properties.category ===
-                'firms_extent_snapshot' &&
-              Number(
-                properties.snapshot_index
-              ) === snapshotIndex
+            if (
+              properties.category !==
+                'firms_extent_snapshot'
+            ) {
+              return best;
+            }
+
+            const featureIndex = Number(
+              properties.snapshot_index
             );
-          }
+
+            if (
+              !Number.isFinite(featureIndex) ||
+              featureIndex > snapshotIndex
+            ) {
+              return best;
+            }
+
+            if (
+              !best ||
+              featureIndex >
+                Number(
+                  (
+                    best.properties || {}
+                  ).snapshot_index
+                )
+            ) {
+              return feature;
+            }
+
+            return best;
+          },
+          null
         );
 
       if (extentFeature) {
