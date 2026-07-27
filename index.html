@@ -376,6 +376,10 @@
       line-height:1.25;
     }
 
+    .fire-progression-status-secondary{
+      display:none;
+    }
+
     .fire-progression-age-help{
       display:none;
     }
@@ -1732,10 +1736,10 @@
           interactive: false,
 
           style: {
-            color: '#111111',
-            weight: 2.4,
-            opacity: 0.95,
-            dashArray: '8 6',
+            color: '#70483a',
+            weight: 1.5,
+            opacity: 0.68,
+            dashArray: '7 8',
             lineCap: 'round',
             lineJoin: 'round',
             fillOpacity: 0
@@ -3713,10 +3717,10 @@
       category === 'maximum_firms_extent'
     ) {
       return {
-        color: '#111111',
-        weight: 2.4,
-        opacity: 0.95,
-        dashArray: '8 6',
+        color: '#70483a',
+        weight: 1.5,
+        opacity: 0.68,
+        dashArray: '7 8',
         lineCap: 'round',
         lineJoin: 'round',
         fillOpacity: 0
@@ -4217,13 +4221,14 @@
       (index + 1) +
       '/' +
       snapshots.length +
-      '<br>' +
-      'Sélectionnez une ou plusieurs tranches d’âge.' +
+      '<span class="fire-progression-status-secondary">' +
+      '<br>Sélectionnez une ou plusieurs tranches d’âge.' +
       (
         snapshot.projection_displayed
           ? ''
           : '<br><i>Projection non affichée : cohérence insuffisante.</i>'
-      );
+      ) +
+      '</span>';
   }
 
   async function ensureFireProgressionLoaded() {

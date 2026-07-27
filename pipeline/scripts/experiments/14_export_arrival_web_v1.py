@@ -105,8 +105,12 @@ FIRMS_POINTS_INPUT = Path(
 )
 
 FIRMS_EXTENT_METHOD = (
-    "cumulative_local_point_clusters_v2"
+    "cumulative_detection_extent_smoothed_web_v1"
 )
+
+# Lissage réservé à l'affichage web.
+# Closing symétrique : aucune expansion nette théorique.
+FIRMS_DISPLAY_SMOOTH_M = 300.0
 
 # Connexion maximale entre détections d'un même incendie local.
 LOCAL_CLUSTER_LINK_M = 10_000.0
@@ -239,9 +243,29 @@ def firms_extent_for_time(extents, timestamp):
     if not metric_geometry.is_valid:
         metric_geometry = metric_geometry.buffer(0)
 
-    # Simplification purement graphique pour l'export web.
-    # Le GPKG scientifique reste inchangé.
-    metric_geometry = metric_geometry.simplify(
+    # Lissage purement graphique de l'emprise publiée.
+    # La géométrie scientifique du GPKG reste inchangée.
+    display_geometry = (
+        metric_geometry
+        .buffer(
+            FIRMS_DISPLAY_SMOOTH_M,
+            resolution=24,
+            join_style=1,
+        )
+        .buffer(
+            -FIRMS_DISPLAY_SMOOTH_M,
+            resolution=24,
+            join_style=1,
+        )
+    )
+
+    if display_geometry.is_empty:
+        display_geometry = metric_geometry
+
+    if not display_geometry.is_valid:
+        display_geometry = display_geometry.buffer(0)
+
+    metric_geometry = display_geometry.simplify(
         30.0,
         preserve_topology=True,
     )
