@@ -33,6 +33,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r pipeline/requirements.txt
 
+      - name: Cache ESA WorldCover tiles
+        uses: actions/cache@v4
+        with:
+          path: pipeline/data/external/worldcover_2021_v200
+          key: worldcover-2021-v200-N42W003-N45W003-v1
+
       - name: Restore cumulative FIRMS state
         uses: actions/cache@v4
         with:

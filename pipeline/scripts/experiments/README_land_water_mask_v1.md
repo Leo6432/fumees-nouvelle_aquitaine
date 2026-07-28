@@ -95,3 +95,23 @@ Les sommes temporelles ne représentent pas une union spatiale unique.
 Méthode validée pour intégration dans l'export web.
 
 Les géométries scientifiques du GPKG restent inchangées.
+
+## Déploiement live
+
+L'intégration de production utilise :
+
+- `scripts/ensure_worldcover_tiles.sh` pour le téléchargement
+  conditionnel et la validation des deux tuiles ;
+- un cache GitHub Actions statique identifié par :
+  `worldcover-2021-v200-N42W003-N45W003-v1` ;
+- `scripts/29_export_arrival_web_landmask_v1.py` pour produire
+  les URL publiques historiques :
+  - `data/web/fire_progression_arrival_v1.geojson`
+  - `data/web/fire_progression_arrival_v1_manifest.json`
+
+Le nom public et le champ `model_version` restent en version 1 afin
+de préserver la compatibilité. La présence et les paramètres du
+masque sont documentés dans la section `land_water_mask` du manifeste.
+
+Le cache est immuable. Toute modification du produit, des tuiles ou
+de la méthode de téléchargement doit utiliser une nouvelle clé.
