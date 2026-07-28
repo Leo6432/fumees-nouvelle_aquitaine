@@ -465,10 +465,37 @@
   }
   .leaflet-container{background:#0b0e11}
   .notice{
-    position:absolute;left:50%;top:70px;transform:translateX(-50%);
-    background:rgba(26,33,41,.92);border:1px solid #38424e;border-radius:8px;
-    padding:8px 14px;font-size:.8rem;color:var(--smoke);z-index:1200;
-    display:none;max-width:90%;text-align:center;
+    position:absolute;
+    left:50%;
+    bottom:34px;
+    transform:translateX(-50%);
+    background:rgba(26,33,41,.94);
+    border:1px solid #38424e;
+    border-radius:8px;
+    padding:8px 14px;
+    font-size:.8rem;
+    color:var(--smoke);
+    z-index:1200;
+    display:none;
+    width:max-content;
+    max-width:min(90%,520px);
+    text-align:center;
+    box-shadow:0 3px 14px rgba(0,0,0,.3);
+  }
+
+  @media(max-width:768px){
+    .notice{
+      position:fixed;
+      left:12px;
+      right:12px;
+      bottom:14px;
+      transform:none;
+      width:auto;
+      max-width:none;
+      padding:9px 12px;
+      font-size:.76rem;
+      z-index:5000;
+    }
   }
   #atmolegend{
     position:absolute;right:12px;bottom:26px;z-index:1000;display:none;
@@ -1013,6 +1040,303 @@
     }
   }
 
+
+  /* Fenêtre d'information générale */
+  header{
+    position:relative;
+  }
+
+  .info-button{
+    position:absolute;
+    top:10px;
+    right:12px;
+    z-index:1500;
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    padding:0;
+    border:1px solid rgba(255,255,255,.35);
+    border-radius:50%;
+    background:rgba(31,42,54,.96);
+    color:var(--paper);
+    font:700 1.05rem/1 sans-serif;
+    cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+
+  .info-button[hidden]{
+    display:none;
+  }
+
+  .info-button:hover,
+  .info-button:focus-visible{
+    background:rgba(50,64,79,.98);
+    border-color:rgba(255,255,255,.7);
+    outline:none;
+  }
+
+  .info-modal[hidden]{
+    display:none;
+  }
+
+  .info-modal{
+    position:fixed;
+    inset:0;
+    z-index:5000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(5,10,15,.72);
+    backdrop-filter:blur(3px);
+  }
+
+  .info-dialog{
+    position:relative;
+    width:min(680px,100%);
+    max-height:min(820px,calc(100vh - 36px));
+    overflow:auto;
+    padding:22px 24px 24px;
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:14px;
+    background:#18222c;
+    color:var(--paper);
+    box-shadow:0 14px 50px rgba(0,0,0,.48);
+  }
+
+  .info-dialog h2{
+    margin:0 44px 12px 0;
+    font-size:1.3rem;
+  }
+
+  .info-dialog h3{
+    margin:20px 0 7px;
+    font-size:1rem;
+  }
+
+  .info-dialog p{
+    margin:7px 0;
+    line-height:1.48;
+  }
+
+  .info-dialog ul{
+    margin:8px 0;
+    padding-left:20px;
+  }
+
+  .info-dialog li{
+    margin:7px 0;
+    line-height:1.4;
+  }
+
+  .info-dialog a{
+    color:#9fd5ff;
+  }
+
+  .info-close{
+    position:absolute;
+    top:12px;
+    right:12px;
+    width:34px;
+    height:34px;
+    padding:0;
+    border:0;
+    border-radius:50%;
+    background:rgba(255,255,255,.09);
+    color:var(--paper);
+    font-size:1.35rem;
+    cursor:pointer;
+  }
+
+  .info-close:hover,
+  .info-close:focus-visible{
+    background:rgba(255,255,255,.18);
+    outline:none;
+  }
+
+  .info-warning{
+    padding:10px 12px;
+    border-left:3px solid #ff6b35;
+    background:rgba(255,107,53,.09);
+  }
+
+  .info-support{
+    display:inline-flex;
+    align-items:center;
+    margin-top:8px;
+    padding:8px 13px;
+    border:1px solid rgba(255,255,255,.4);
+    border-radius:999px;
+    font-weight:700;
+  }
+
+  .info-support-disabled{
+    opacity:.55;
+    cursor:not-allowed;
+  }
+
+  body.info-modal-open{
+    overflow:hidden;
+  }
+
+  @media(max-width:768px){
+    .info-button{
+      top:54px;
+      right:14px;
+      width:34px;
+      height:34px;
+    }
+
+    .info-modal{
+      align-items:stretch;
+      padding:10px;
+    }
+
+    .info-dialog{
+      width:100%;
+      max-height:none;
+      padding:20px 18px 24px;
+      border-radius:12px;
+    }
+  }
+
+
+  /* Soutien permanent dans l’en-tête */
+  .site-support-link{
+    position:absolute;
+    top:10px;
+    right:56px;
+    z-index:1500;
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    min-height:32px;
+    padding:0 11px;
+    border:1px solid rgba(255,255,255,.35);
+    border-radius:999px;
+    background:rgba(31,42,54,.96);
+    color:var(--paper);
+    font-weight:700;
+    text-decoration:none;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+.site-support-link:hover,
+  .site-support-link:focus-visible{
+    background:rgba(50,64,79,.98);
+    border-color:rgba(255,255,255,.7);
+    text-decoration:none;
+    outline:none;
+  }
+
+  /* Actions au bas de la fenêtre d’information */
+  .info-actions{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:22px;
+    padding-top:16px;
+    border-top:1px solid rgba(255,255,255,.15);
+  }
+
+  .info-scroll-hint{
+    margin:0;
+    font-size:.84rem;
+    color:rgba(255,255,255,.72);
+    text-align:center;
+  }
+
+  .info-scroll-hint.is-ready{
+    color:#b9dfc2;
+  }
+
+  .info-accept,
+  .info-support{
+    box-sizing:border-box;
+    width:100%;
+    min-height:44px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:10px 14px;
+    border-radius:8px;
+    font:700 .95rem/1.2 inherit;
+    text-align:center;
+  }
+
+  .info-accept{
+    border:1px solid #ff6b35;
+    background:#ff6b35;
+    color:#fff;
+    cursor:pointer;
+  }
+
+  .info-accept:hover:not(:disabled),
+  .info-accept:focus-visible:not(:disabled){
+    filter:brightness(1.08);
+    outline:none;
+  }
+
+  .info-accept:disabled{
+    border-color:rgba(255,255,255,.2);
+    background:rgba(255,255,255,.09);
+    color:rgba(255,255,255,.42);
+    cursor:not-allowed;
+  }
+
+  .info-support{
+    margin:0;
+    border:1px solid rgba(255,255,255,.45);
+    background:rgba(255,255,255,.06);
+    color:var(--paper);
+    text-decoration:none;
+  }
+
+  .info-support:hover,
+  .info-support:focus-visible{
+    background:rgba(255,255,255,.14);
+    text-decoration:none;
+    outline:none;
+  }
+
+  .info-close[hidden]{
+    display:none;
+  }
+
+  @media(max-width:768px){
+    .site-support-link{
+      top:12px;
+      right:14px;
+      min-height:32px;
+      padding:0 9px;
+      gap:0;
+      font-size:.72rem;
+      letter-spacing:.01em;
+    }
+
+    .site-support-text{
+      position:static;
+      width:auto;
+      height:auto;
+      overflow:visible;
+      clip:auto;
+      white-space:nowrap;
+    }
+
+    header select,
+    header input[type="date"]{
+      font-size:.88rem;
+    }
+
+    header label{
+      font-size:.82rem;
+    }
+
+    .info-actions{
+      padding-bottom:4px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -1033,7 +1357,7 @@
           <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS Suomi-NPP</option>
           <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra</option>
           <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">MODIS Aqua</option>
-          <option value="S3_OLCI_TRUECOLOR">Sentinel-3 OLCI (3A + 3B, 300 m)</option>
+          <option value="S3_OLCI_TRUECOLOR">Sentinel-3</option>
         </select>
       </span>
     </div>
@@ -1118,7 +1442,167 @@
       </div>
     </details>
   </div>
+  <a
+    class="site-support-link"
+    href="https://buy.stripe.com/3cIaEY5nu6hw8SY32Y7wA00"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Contribuer à fiñv">
+    <span class="site-support-text">Contribuer</span>
+  </a>
+
+  <button
+    type="button"
+    class="info-button"
+    id="info-button"
+    aria-label="Informations, sources et crédits"
+    aria-haspopup="dialog"
+    aria-controls="info-modal">
+    i
+  </button>
 </header>
+
+<div class="info-modal" id="info-modal" hidden>
+  <section
+    class="info-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="info-title">
+
+    <button
+      type="button"
+      class="info-close"
+      id="info-close"
+      aria-label="Fermer la fenêtre d’information">
+      ×
+    </button>
+
+    <h2 id="info-title">À propos de cette carte</h2>
+
+    <p>
+      Cette carte indépendante permet de visualiser les incendies,
+      les panaches de fumée et plusieurs indicateurs environnementaux
+      en Nouvelle-Aquitaine à partir de données satellitaires et publiques.
+    </p>
+
+    <p class="info-warning">
+      Ce site n’est pas un outil opérationnel de sécurité civile.
+      Les images satellitaires ne sont pas du temps réel et peuvent être
+      masquées par les nuages ou décalées par rapport à la situation au sol.
+      En cas de danger, suivre exclusivement les consignes des autorités.
+    </p>
+
+    <h3>Comment utiliser la carte</h3>
+
+    <p>
+      Choisissez d’abord le jour et le satellite à afficher.
+      Pensez ensuite à ouvrir <strong>« Couches et réglages »</strong> :
+      ce menu permet d’activer les foyers détectés, la qualité de l’air,
+      le vent, les surfaces brûlées, les aérosols et l’évolution observée
+      du feu.
+    </p>
+
+    <p>
+      Les éléments de la carte sont interactifs : cliquez sur un foyer,
+      une zone ou un contrôle pour afficher les informations disponibles.
+      Les couches ne sont pas toutes activées par défaut afin de conserver
+      une carte lisible.
+    </p>
+
+    <h3>Données utilisées</h3>
+
+    <ul>
+      <li>
+        <strong>Foyers actifs :</strong>
+        détections thermiques MODIS et VIIRS fournies par
+        <a href="https://firms.modaps.eosdis.nasa.gov/"
+           target="_blank" rel="noopener noreferrer">NASA FIRMS</a>.
+      </li>
+
+      <li>
+        <strong>Images satellitaires :</strong>
+        NASA GIBS / Worldview et Sentinel-3 OLCI via
+        <a href="https://worldview.earthdata.nasa.gov/"
+           target="_blank" rel="noopener noreferrer">NASA Worldview</a>
+        et le
+        <a href="https://dataspace.copernicus.eu/"
+           target="_blank" rel="noopener noreferrer">Copernicus Data Space</a>.
+      </li>
+
+      <li>
+        <strong>Aérosols :</strong>
+        indice UV de l’instrument OMPS embarqué sur Suomi-NPP.
+      </li>
+
+      <li>
+        <strong>Qualité de l’air :</strong>
+        données des AASQA diffusées par
+        <a href="https://map.atmo-france.org/"
+           target="_blank" rel="noopener noreferrer">Atmo France</a>
+        et
+        <a href="https://www.atmo-nouvelleaquitaine.org/"
+           target="_blank" rel="noopener noreferrer">ATMO Nouvelle-Aquitaine</a>.
+      </li>
+
+      <li>
+        <strong>Vent :</strong>
+        modèle ECMWF IFS distribué par
+        <a href="https://open-meteo.com/"
+           target="_blank" rel="noopener noreferrer">Open-Meteo</a>.
+      </li>
+
+      <li>
+        <strong>Surfaces brûlées :</strong>
+        périmètres stabilisés du
+        <a href="https://forest-fire.emergency.copernicus.eu/"
+           target="_blank" rel="noopener noreferrer">système européen EFFIS</a>.
+      </li>
+
+      <li>
+        <strong>Fond de carte :</strong>
+        <a href="https://www.openstreetmap.org/copyright"
+           target="_blank" rel="noopener noreferrer">OpenStreetMap</a>
+        et CARTO.
+      </li>
+
+      <li>
+        <strong>Adresses et limites administratives :</strong>
+        Géoplateforme IGN, Base Adresse Nationale et Admin Express COG 2026.
+      </li>
+    </ul>
+
+    <h3>Évolution observée du feu</h3>
+
+    <p>
+      Les zones temporelles sont reconstruites à partir des passages
+      successifs des satellites FIRMS. Elles représentent une chronologie
+      des détections observées, pas une mesure exacte du front de flammes
+      ni une prévision de propagation.
+    </p>
+
+    <div class="info-actions">
+      <p class="info-scroll-hint" id="info-scroll-hint">
+        Faites défiler cette fenêtre jusqu’en bas pour accéder à la carte.
+      </p>
+
+      <button
+        type="button"
+        class="info-accept"
+        id="info-accept"
+        disabled>
+        OK, accéder à la carte
+      </button>
+
+      <a
+        class="info-support"
+        href="https://buy.stripe.com/3cIaEY5nu6hw8SY32Y7wA00"
+        target="_blank"
+        rel="noopener noreferrer">
+        📡 Soutenir fiñv
+      </a>
+    </div>
+  </section>
+</div>
 
 <div class="map-shell">
   <div id="map"></div>
@@ -1221,20 +1705,6 @@
 </div>
 <div class="notice" id="notice"></div>
 
-<footer>
-  <span class="warn">Une image satellite par jour — pas de temps réel. En cas de fumée visible ou d'odeur, suivre les consignes officielles (préfecture, <a href="https://www.atmo-nouvelleaquitaine.org/">ATMO Nouvelle-Aquitaine</a>).</span>
-  <details>
-    <summary>Sources &amp; crédits</summary>
-    Imagerie : NASA GIBS / Worldview (VIIRS &amp; MODIS) et Copernicus Data Space (Sentinel-3 OLCI 3A + 3B, couleurs naturelles — les panaches de fumée sont visibles en gris-bleu).
-    Foyers : détections thermiques MODIS et VIIRS des dernières 48 h (NASA FIRMS ; couleurs du rouge au jaune clair selon l’âge, par classes de 8 h).
-    Aérosols : indice UV OMPS (Suomi-NPP), le même instrument que pour les panaches volcaniques.
-    Vent : modèle ECMWF IFS via <a href="https://open-meteo.com/">Open-Meteo</a> (flèches orientées vers où souffle le vent).
-    Indice ATMO (points) : <a href="https://map.atmo-france.org/">Atmo Data</a> — Atmo France et les AASQA (ODbL) ; détail par commune sur la <a href="https://www.atmo-nouvelleaquitaine.org/air-commune">carte officielle</a>.
-    Surfaces brûlées : <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a> © UE, Copernicus EMS — périmètres stabilisés de la couche <code>modis.ba</code>, fenêtre de 7 jours se terminant à la date choisie.
-    Recherche d’adresse : service de géocodage de la Géoplateforme IGN, données de la Base Adresse Nationale ; ligne et distance jusqu’à la limite détectée la plus proche, sans extrapolation opérationnelle.
-    Fond de carte : © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, labels © CARTO. Limites de communes : IGN Admin Express COG 2026 (Licence ouverte).
-  </details>
-</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -5219,5 +5689,138 @@
   setTimeout(selectLatestHomeSatellite, 0);
 
 </script>
+
+<script>
+(() => {
+  const STORAGE_KEY = "finv-info-seen-v1";
+
+  const button = document.getElementById("info-button");
+  const modal = document.getElementById("info-modal");
+  const dialog = modal?.querySelector(".info-dialog");
+  const closeButton = document.getElementById("info-close");
+  const acceptButton = document.getElementById("info-accept");
+  const scrollHint = document.getElementById("info-scroll-hint");
+
+  if (
+    !button ||
+    !modal ||
+    !dialog ||
+    !closeButton ||
+    !acceptButton ||
+    !scrollHint
+  ) {
+    return;
+  }
+
+  let onboardingActive = false;
+
+  const hasReachedBottom = () =>
+    dialog.scrollTop + dialog.clientHeight >= dialog.scrollHeight - 12;
+
+  const updateOnboardingState = () => {
+    if (!onboardingActive) return;
+
+    const ready = hasReachedBottom();
+
+    acceptButton.disabled = !ready;
+    scrollHint.classList.toggle("is-ready", ready);
+    scrollHint.textContent = ready
+      ? "Vous pouvez maintenant accéder à la carte."
+      : "Faites défiler cette fenêtre jusqu’en bas pour accéder à la carte.";
+  };
+
+  const openModal = ({ onboarding = false } = {}) => {
+    onboardingActive = onboarding;
+    modal.hidden = false;
+    document.body.classList.add("info-modal-open");
+
+    button.hidden = onboardingActive;
+    closeButton.hidden = onboardingActive;
+    acceptButton.disabled = onboardingActive;
+    scrollHint.hidden = !onboardingActive;
+
+    if (!onboardingActive) {
+      acceptButton.disabled = false;
+      acceptButton.textContent = "OK, revenir à la carte";
+    } else {
+      acceptButton.textContent = "OK, accéder à la carte";
+    }
+
+    dialog.scrollTop = 0;
+
+    requestAnimationFrame(() => {
+      updateOnboardingState();
+
+      if (onboardingActive) {
+        dialog.focus({ preventScroll: true });
+      } else {
+        closeButton.focus();
+      }
+    });
+  };
+
+  const closeModal = () => {
+    if (onboardingActive) return;
+
+    modal.hidden = true;
+    document.body.classList.remove("info-modal-open");
+    button.focus();
+  };
+
+  const acceptAndClose = () => {
+    if (onboardingActive && acceptButton.disabled) return;
+
+    if (onboardingActive) {
+      try {
+        sessionStorage.setItem(STORAGE_KEY, "1");
+      } catch {
+        // Le site reste utilisable si le stockage est indisponible.
+      }
+    }
+
+    onboardingActive = false;
+    button.hidden = false;
+    modal.hidden = true;
+    document.body.classList.remove("info-modal-open");
+  };
+
+  button.addEventListener("click", () => {
+    openModal({ onboarding: false });
+  });
+
+  closeButton.addEventListener("click", closeModal);
+  acceptButton.addEventListener("click", acceptAndClose);
+  dialog.addEventListener("scroll", updateOnboardingState, { passive: true });
+
+  modal.addEventListener("click", event => {
+    if (event.target === modal && !onboardingActive) {
+      closeModal();
+    }
+  });
+
+  document.addEventListener("keydown", event => {
+    if (
+      event.key === "Escape" &&
+      !modal.hidden &&
+      !onboardingActive
+    ) {
+      closeModal();
+    }
+  });
+
+  let alreadySeen = false;
+
+  try {
+    alreadySeen = sessionStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    alreadySeen = false;
+  }
+
+  if (!alreadySeen) {
+    openModal({ onboarding: true });
+  }
+})();
+</script>
+
 </body>
 </html>
