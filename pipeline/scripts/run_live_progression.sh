@@ -7,32 +7,35 @@ mkdir -p   data/raw   data/processed/experiments   data/web
 
 export MPLBACKEND=Agg
 
-echo "===== 1/9 — Téléchargement FIRMS ====="
+echo "===== 1/10 — Téléchargement FIRMS ====="
 python scripts/01_fetch_firms.py
 
-echo "===== 2/9 — Emprises FIRMS cumulées ====="
+echo "===== 2/10 — Emprises FIRMS cumulées ====="
 python scripts/03_cumulative_detection_envelopes.py
 
-echo "===== 3/9 — Support spatio-temporel ====="
+echo "===== 3/10 — Support spatio-temporel ====="
 python scripts/02_build_spatiotemporal_support.py
 
-echo "===== 4/9 — Support causal ====="
+echo "===== 4/10 — Support causal ====="
 python scripts/05_build_causal_support.py
 
-echo "===== 5/9 — Regroupement par passage ====="
+echo "===== 5/10 — Regroupement par passage ====="
 python scripts/experiments/05_build_passes_v1.py
 
-echo "===== 6/9 — Distance caractéristique ====="
+echo "===== 6/10 — Distance caractéristique ====="
 python scripts/experiments/06_characteristic_distance_by_pass.py
 
-echo "===== 7/9 — Régularisation ====="
+echo "===== 7/10 — Régularisation ====="
 python scripts/experiments/07_regularize_characteristic_distance.py
 
-echo "===== 8/9 — Progression observée ====="
+echo "===== 8/10 — Progression observée ====="
 bash scripts/experiments/08_fire_progression_passes_v1.sh
 
-echo "===== 9/9 — Export web + projection plausible à 1 h ====="
-python scripts/experiments/14_export_arrival_web_v1.py
+echo "===== 9/10 — Préparation du masque WorldCover ====="
+bash scripts/ensure_worldcover_tiles.sh
+
+echo "===== 10/10 — Export web + projection plausible à 1 h ====="
+python scripts/29_export_arrival_web_landmask_v1.py
 
 echo
 echo "===== SORTIES WEB ====="
