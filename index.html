@@ -3316,7 +3316,8 @@
   // Une seule date pilote maintenant toute la carte : celle du sélecteur « Jour ».
   // Le WFS et le WMS reçoivent exactement la même date_ech, ce qui évite de
   // superposer une prévision J+1 en points à une valeur J/J-1 dans les polygones.
-  const ATMO_WFS = OPENAQ_PROXY + '/atmo';
+  const ATMO_API_V2 = OPENAQ_PROXY + '/atmo-v2';
+  const ATMO_WFS = OPENAQ_PROXY + '/atmo'; // repli GeoServer historique
   const ATMO_COLORS = {
     1: '#50f0e6', 2: '#50ccaa', 3: '#f0e641',
     4: '#ff5050', 5: '#960032', 6: '#872181', 7: '#888888'
@@ -3346,7 +3347,74 @@
     return d.toISOString().slice(0, 10);
   }
 
-  async function fetchAtmoIndices(targetDate) {
+  async function fetchAtmoIndicesV2(targetDate) {
+    const url = ATMO_API_V2 + '?date=' + encodeURIComponent(targetDate);
+    const r = await fetch(url);
+
+    if (!r.ok) {
+      let detail = '';
+      try {
+        detail = await r.text();
+      } catch (_) {}
+      const err = new Error(
+        'API Atmo v2 HTTP ' + r.status +
+        (detail ? ' — ' + detail.slice(0, 160) : '')
+      );
+      err.status = r.status;
+      throw err;
+    }
+
+    const data = await r.json();
+    if (!data || data.type !== 'FeatureCollection' ||
+        !Array.isArray(data.features)) {
+      throw new Error('Réponse Atmo v2 invalide.');
+    }
+
+    const mapByCode = {};
+    let received = 0;
+    let realDateEch = '';
+    let realDateDif = '';
+
+    data.features.forEach(f => {
+      const p = f.properties || {};
+      const typeZone = String(p.type_zone || '').trim().toLowerCase();
+      if (typeZone && typeZone !== 'commune') return;
+      if (p.code_zone == null) return;
+
+      const code = String(p.code_zone).trim().padStart(5, '0');
+      const previous = mapByCode[code];
+
+      received++;
+      if (p.date_ech && String(p.date_ech) > realDateEch) {
+        realDateEch = String(p.date_ech);
+      }
+      if (p.date_dif && String(p.date_dif) > realDateDif) {
+        realDateDif = String(p.date_dif);
+      }
+      if (!previous ||
+          String(p.date_dif || '') >= String(previous.date_dif || '')) {
+        mapByCode[code] = p;
+      }
+    });
+
+    if (!received || Object.keys(mapByCode).length === 0) {
+      throw new Error('API Atmo v2 sans donnée communale pour ' + targetDate + '.');
+    }
+
+    console.info(
+      'ATMO API v2 :', received, 'enregistrements reçus pour le', targetDate,
+      ';', Object.keys(mapByCode).length, 'communes retenues.'
+    );
+
+    return {
+      byCode: mapByCode,
+      dateEch: realDateEch,
+      dateDif: realDateDif,
+      source: 'api-v2'
+    };
+  }
+
+  async function fetchAtmoIndicesLegacy(targetDate) {
     // Filtrer la date côté serveur est essentiel : un département comme la Gironde
     // dépasse 1 000 objets dès que plusieurs jours sont mélangés. Pour une seule
     // date, chaque département reste sous le plafond et aucune commune n'est perdue.
@@ -3423,7 +3491,20 @@
 
     console.info('ATMO :', received, 'enregistrements reçus pour le', targetDate,
       ';', Object.keys(mapByCode).length, 'communes retenues.');
-    return { byCode: mapByCode, dateEch: realDateEch, dateDif: realDateDif };
+    return { byCode: mapByCode, dateEch: realDateEch, dateDif: realDateDif,
+      source: 'geoserver' };
+  }
+
+  async function fetchAtmoIndices(targetDate) {
+    try {
+      return await fetchAtmoIndicesV2(targetDate);
+    } catch (v2Error) {
+      console.warn(
+        'ATMO API v2 indisponible pour', targetDate,
+        '— repli automatique vers /atmo.', v2Error
+      );
+      return await fetchAtmoIndicesLegacy(targetDate);
+    }
   }
 
   const POLLUANT_LIB = {
