@@ -3525,6 +3525,24 @@
 
   const layersPanel = document.querySelector('.layers-panel');
   if (layersPanel) {
+    // Certains navigateurs restaurent l'ancien état fermé d'un élément
+    // <details>, même lorsque l'attribut HTML "open" est présent.
+    // On impose donc l'ouverture uniquement à l'arrivée sur la page.
+    const openLayersPanelOnArrival = () => {
+      layersPanel.open = true;
+      refreshMapSize();
+    };
+
+    openLayersPanelOnArrival();
+    requestAnimationFrame(openLayersPanelOnArrival);
+
+    window.addEventListener(
+      'pageshow',
+      openLayersPanelOnArrival,
+      { once: true }
+    );
+
+    // Après l'arrivée, l'utilisateur reste libre d'ouvrir ou fermer le panneau.
     layersPanel.addEventListener('toggle', refreshMapSize);
   }
 
