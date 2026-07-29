@@ -1854,7 +1854,7 @@
 
             <div class="fire-progression-legend">
               <div class="fire-progression-age-title">
-                Âge de la première détection
+                Âge de la dernière activité détectée
               </div>
 
               <div class="fire-progression-age-help">
@@ -1890,7 +1890,7 @@
                 <label>
                   <input type="checkbox"
                     id="fire-progression-projection"
-                    checked>
+                    disabled>
                   Projection +1 h
                 </label>
 
@@ -4754,9 +4754,19 @@
       };
     }
 
-    if (category === 'arrival_step') {
+    /*
+     * FIRMS_V31_LAST_ACTIVITY_PUBLIC
+     *
+     * arrival_step reste compatible avec les anciens produits.
+     * last_activity_state représente désormais la partition T_last.
+     */
+    if (
+      category === 'arrival_step' ||
+      category === 'last_activity_state'
+    ) {
       const color =
         properties._age_color ||
+        properties.age_color ||
         '#fff7bc';
 
       return {
@@ -4790,11 +4800,11 @@
 
     if (category === 'observed_front') {
       return {
-        color: '#8b101c',
+        color: '#7f0000',
         weight: 2.2,
         opacity: 0.95,
-        fillColor: '#e3292f',
-        fillOpacity: 0.72
+        fillColor: '#ff1d25',
+        fillOpacity: 0.14
       };
     }
 
@@ -4900,14 +4910,80 @@
         )
       );
 
+    /*
+     * Produit V3.1 : chaque snapshot contient une partition
+     * spatiale complète selon l'âge de la dernière activité
+     * thermique validée.
+     */
+    if (
+      fireProgressionManifest.state_field
+        === 'last_activity'
+    ) {
+      fireProgressionData.features.forEach(
+        sourceFeature => {
+          const properties =
+            sourceFeature.properties || {};
+
+          if (
+            properties.category
+              !== 'last_activity_state' ||
+            Number(properties.snapshot_index)
+              !== snapshotIndex
+          ) {
+            return;
+          }
+
+          const ageBin =
+            PROGRESSION_AGE_BINS.find(
+              bin =>
+                bin.id ===
+                properties.age_bin_id
+            );
+
+          if (!ageBin) return;
+
+          const areaKm2 =
+            Number(properties.area_km2) || 0;
+
+          areaByBin[ageBin.id] += areaKm2;
+
+          if (!showArrival) return;
+
+          if (
+            activeProgressionAgeBins.size > 0 &&
+            !activeProgressionAgeBins.has(
+              ageBin.id
+            )
+          ) {
+            return;
+          }
+
+          const feature = JSON.parse(
+            JSON.stringify(sourceFeature)
+          );
+
+          feature.properties._age_bin =
+            ageBin.id;
+
+          feature.properties._age_color =
+            properties.age_color ||
+            ageBin.color;
+
+          visibleFeatures.push(feature);
+        }
+      );
+    }
+
     fireProgressionData.features.forEach(
       sourceFeature => {
         const properties =
           sourceFeature.properties || {};
 
         if (
+          fireProgressionManifest.state_field
+            === 'last_activity' ||
           properties.category
-          !== 'arrival_step'
+            !== 'arrival_step'
         ) {
           return;
         }
@@ -5267,9 +5343,18 @@
 
     let passageMessage = '';
 
-    if (hasNewArrivalStep) {
+    const hasNewValidatedActivity = (
+      fireProgressionManifest.state_field
+        === 'last_activity'
+        ? Number(
+            snapshot.n_newly_validated || 0
+          ) > 0
+        : hasNewArrivalStep
+    );
+
+    if (hasNewValidatedActivity) {
       passageMessage =
-        'Nouveaux secteurs détectés à ce passage.';
+        'Nouveaux secteurs validés à ce passage.';
     } else if (hasObservedFront) {
       passageMessage =
         'Activité détectée dans une zone déjà observée.';
