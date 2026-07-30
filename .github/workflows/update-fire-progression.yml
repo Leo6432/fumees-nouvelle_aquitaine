@@ -50,9 +50,9 @@ jobs:
             firms-cumulative-state-
 
       - name: Run FIRMS progression pipeline
-        env:
-          MPLBACKEND: Agg
-          FIRMS_PROXY: https://feuxgironde.vercel.app/api/relais-firms/86f41cb452f0c5566d4a340ac9e57a46d6eb138c9de40f61
+        env:  
+        MPLBACKEND: Agg
+        FIRMS_PROXY: ${{ secrets.FIRMS_PROXY }}
         run: |
           pipeline/scripts/run_live_progression.sh
 
