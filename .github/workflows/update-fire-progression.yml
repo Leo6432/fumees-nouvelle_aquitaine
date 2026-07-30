@@ -54,6 +54,7 @@ jobs:
           MPLBACKEND: Agg
           FIRMS_PROXY: ${{ secrets.FIRMS_PROXY }}
         run: |
+          pipeline/scripts/run_live_progression.sh
 
       - name: Publish web exports
         run: |
