@@ -57,7 +57,7 @@ def main():
     frames = []
     for s in SOURCES:
         try:
-            df = fetch_source(s, bbox, days=10)
+            df = fetch_source(s, bbox)
             print(f"{s:20s} : {len(df):5d} détections")
             if len(df):
                 frames.append(df)
