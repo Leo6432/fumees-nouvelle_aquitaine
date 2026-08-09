@@ -1,11 +1,13 @@
 """
 01 — Récupération des détections thermiques FIRMS.
 
-Utilise le proxy Cloudflare du site (qui détient la clé FIRMS) pour rester
-cohérent avec la carte web. Sauvegarde un CSV propre dans data/raw.
+Interroge directement l'API NASA FIRMS avec une clé MAP_KEY (gratuite,
+demandée par email sur https://firms.modaps.eosdis.nasa.gov/api/), stockée
+dans la variable d'environnement FIRMS_MAP_KEY. Sauvegarde un CSV propre
+dans data/raw.
 
 Usage :
-    python scripts/01_fetch_firms.py
+    FIRMS_MAP_KEY=... python scripts/01_fetch_firms.py
 """
 from __future__ import annotations
 import os
@@ -17,11 +19,8 @@ import pandas as pd
 
 from common import load_config, resolve, ROOT
 
-# Proxy Cloudflare (même que le site). Modifiable si besoin.
-PROXY = os.environ.get(
-    "FIRMS_PROXY",
-    "https://fumees-openaq.nicolaslecorvec.workers.dev",
-).rstrip("/")
+FIRMS_API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
+MAP_KEY = os.environ.get("FIRMS_MAP_KEY", "").strip()
 
 # Flux FIRMS (VIIRS = meilleure résolution ; MODIS complète la couverture).
 SOURCES = ["VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT", "VIIRS_SNPP_NRT", "MODIS_NRT"]
@@ -29,12 +28,22 @@ SOURCES = ["VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT", "VIIRS_SNPP_NRT", "MODIS_NRT"
 
 def fetch_source(source: str, bbox: list[float], days: int = 5) -> pd.DataFrame:
     """Récupère un flux FIRMS et renvoie un DataFrame (ou vide)."""
+    if not MAP_KEY:
+        raise RuntimeError("FIRMS_MAP_KEY manquant")
     west, south, east, north = bbox
     bbox_str = f"{west},{south},{east},{north}"
-    url = f"{PROXY}/firms/{source}/{bbox_str}/{days}"
+    url = f"{FIRMS_API}/{MAP_KEY}/{source}/{bbox_str}/{days}"
     r = requests.get(url, timeout=60)
     r.raise_for_status()
-    if not r.text.strip() or "\n" not in r.text:
+    if not r.text.strip():
+        return pd.DataFrame()
+    # FIRMS répond en 200 avec un message texte (pas du CSV) sur clé
+    # invalide ou quota dépassé : à distinguer d'une simple absence de
+    # détection (qui renvoie juste l'en-tête CSV, une ligne avec virgules).
+    if "\n" not in r.text and "," not in r.text:
+        head = r.text[:200]
+        raise RuntimeError(head.strip())
+    if "\n" not in r.text:
         return pd.DataFrame()
     df = pd.read_csv(io.StringIO(r.text))
     df["source"] = source

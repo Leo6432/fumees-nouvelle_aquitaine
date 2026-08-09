@@ -52,7 +52,7 @@ jobs:
       - name: Run FIRMS progression pipeline
         env:
           MPLBACKEND: Agg
-          FIRMS_PROXY: ${{ secrets.FIRMS_PROXY }}
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
         run: |
           pipeline/scripts/run_live_progression.sh
 
