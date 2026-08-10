@@ -4612,6 +4612,11 @@
     const fires = firesIndexData || [];
     if (!fires.length) return;
 
+    // Même détail que la vue d'un seul feu (toutes les étapes
+    // cumulatives, dégradées par âge — pas seulement la dernière
+    // limite) : on rejoue exactement le calcul de prepareIsochrones()
+    // par feu, sans toucher à son état global (isochronesData / etc.),
+    // puis on fusionne le tout dans une seule couche.
     const results = await Promise.all(fires.map(async fire => {
       try {
         const response = await fetch(
@@ -4620,26 +4625,38 @@
         );
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const data = await response.json();
-        const features = data.features || [];
-
-        // La dernière étape de chaque foyer secondaire (cluster_id
-        // local à ce feu, pas un id global) de ce fichier.
-        const latestByCluster = new Map();
-        features.forEach(feature => {
-          const p = feature.properties || {};
-          const clusterId = Number(p.cluster_id);
-          const snapshotIndex = Number(p.snapshot_index);
-          if (!Number.isFinite(clusterId) || !Number.isFinite(snapshotIndex)) return;
-          const current = latestByCluster.get(clusterId);
-          if (!current || snapshotIndex > Number(current.properties.snapshot_index)) {
-            latestByCluster.set(clusterId, feature);
-          }
+        const features = (data.features || []).filter(feature => {
+          const p = feature && feature.properties || {};
+          return feature &&
+            Number.isFinite(Number(p.cluster_id)) &&
+            Number.isFinite(Number(p.snapshot_index)) &&
+            Boolean(p.observed_until_utc);
         });
 
-        return Array.from(latestByCluster.values()).map(feature => ({
-          ...feature,
-          properties: { ...feature.properties, _fire_id: fire.id, _fire: fire }
-        }));
+        const byCluster = new Map();
+        features.forEach(feature => {
+          const clusterId = Number(feature.properties.cluster_id);
+          if (!byCluster.has(clusterId)) byCluster.set(clusterId, []);
+          byCluster.get(clusterId).push(feature);
+        });
+
+        const processed = [];
+        byCluster.forEach(clusterFeatures => {
+          const maxSnapshot = Math.max(
+            ...clusterFeatures.map(f => Number(f.properties.snapshot_index))
+          );
+          clusterFeatures.forEach(feature => {
+            const snapshotIndex = Number(feature.properties.snapshot_index);
+            feature.properties._display_progress =
+              maxSnapshot > 1 ? (snapshotIndex - 1) / (maxSnapshot - 1) : 1;
+            feature.properties._is_latest = snapshotIndex === maxSnapshot;
+            feature.properties._fire_id = fire.id;
+            feature.properties._fire = fire;
+            processed.push(feature);
+          });
+        });
+
+        return createDisplayEnvelopeData({ features: processed }).features;
       } catch (error) {
         console.error('Vue d’ensemble (feu ' + fire.id + ') :', error);
         return [];
@@ -4654,14 +4671,35 @@
       {
         pane: 'isochrones',
         smoothFactor: 1.7,
-        style: { color: '#d7191c', weight: 2.5, opacity: 0.9, lineCap: 'round', lineJoin: 'round' },
+        style: feature => {
+          const p = feature.properties || {};
+          const progress = Number(p._display_progress) || 0;
+          const latest = Boolean(p._is_latest);
+
+          return {
+            color: latest ? '#d7191c' : envelopeColor(progress),
+            weight: latest ? 3.0 : 1.0 + 0.8 * progress,
+            opacity: latest ? 0.95 : 0.16 + 0.34 * progress,
+            dashArray: latest ? null : '2 6',
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: true
+          };
+        },
         onEachFeature: (feature, layer) => {
           const p = feature.properties || {};
+          const latest = Boolean(p._is_latest);
           const date = formatObservationDate(p.observed_until_utc);
+          const count = Number(p.supported_detections_cumulative);
+
           layer.bindTooltip(
-            '<b>Feu</b> · ' + escapeHtml(p._fire ? fireOptionLabel(p._fire) : '') +
-            '<br>Dernière observation : ' + escapeHtml(date) +
-            '<br><small>Ni surface brûlée ni front continu.</small>',
+            '<b>' + escapeHtml(p._fire ? fireOptionLabel(p._fire) : 'Feu') + '</b>' +
+            '<br>' + (latest ? 'Dernière limite détectée' : 'Étape cumulative') +
+            '<br>Observations jusqu’au ' + escapeHtml(date) +
+            (Number.isFinite(count)
+              ? '<br>' + count.toLocaleString('fr-FR') + ' détections soutenues cumulées'
+              : '') +
+            '<br><small>Ni surface brûlée ni front continu — cliquer pour le détail animé.</small>',
             { sticky: true, opacity: 0.96 }
           );
           layer.on('click', () => {
