@@ -170,6 +170,28 @@
     box-sizing:border-box;
   }
 
+  .fire-select-row{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:7px 9px 0;
+    box-sizing:border-box;
+    font-size:12.5px;
+  }
+
+  .fire-select-row label{
+    white-space:nowrap;
+    opacity:0.85;
+  }
+
+  .fire-select-row select{
+    flex:1;
+    min-width:0;
+    font:inherit;
+    font-size:12.5px;
+    padding:3px 5px;
+  }
+
   .fire-progression-controls.is-visible{
     display:block;
   }
@@ -1818,6 +1840,11 @@
     id="fire-progression-map-panel" open>
 
     <summary>Évolution observée du feu</summary>
+
+    <div class="fire-select-row" id="fire-select-row" style="display:none;">
+      <label for="fire-select">Feu affiché</label>
+      <select id="fire-select"></select>
+    </div>
 
   <div class="fire-progression-controls"
             id="fire-progression-controls">
@@ -4417,7 +4444,7 @@
 
   async function ensureIsochronesLoaded(addToMap) {
     if (!isochronesData) {
-      const response = await fetch('detection_envelopes.geojson', {
+      const response = await fetch(ISOCHRONES_URL, {
         cache: 'no-store'
       });
       if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -4516,11 +4543,152 @@
   map.getPane('fireprogress').style.zIndex = 637;
   map.getPane('fireprogress').style.pointerEvents = 'auto';
 
-  const FIRE_PROGRESSION_GEOJSON =
+  // Chemins par défaut (rétro-compatibles avec l'ancien feu unique) ;
+  // remplacés dès que l'index multi-feux est chargé, voir
+  // setActiveFire() plus bas.
+  let FIRE_PROGRESSION_GEOJSON =
     'data/fire-progression/fire_progression_arrival_v1.geojson';
 
-  const FIRE_PROGRESSION_MANIFEST =
+  let FIRE_PROGRESSION_MANIFEST =
     'data/fire-progression/fire_progression_arrival_v1_manifest.json';
+
+  let ISOCHRONES_URL = 'detection_envelopes.geojson';
+
+  // ==== Sélection du feu (national) ====
+  //
+  // Chaque feu détecté nationalement a sa propre analyse complète
+  // (isochrones, temps d'arrivée) publiée sous
+  // data/fire-progression/fires/<id>/ — voir 00_detect_active_fires.py
+  // et run_live_progression_multi.sh côté pipeline. Cette section
+  // charge la liste des feux actifs et bascule les couches déjà
+  // définies plus haut (ensureIsochronesLoaded, ensureFireProgressionLoaded)
+  // sur le feu choisi, sans dupliquer leur logique de rendu.
+  let firesIndexData = null;
+  let currentFireId = null;
+
+  const fireSelectRow = document.getElementById('fire-select-row');
+  const fireSelect = document.getElementById('fire-select');
+
+  function fireOptionLabel(fire) {
+    const lat = fire.centroid[1].toFixed(2);
+    const lon = fire.centroid[0].toFixed(2);
+    const hemisphereLon = fire.centroid[0] >= 0 ? 'E' : 'O';
+    return (
+      'Feu · ' + lat + '°N ' + Math.abs(fire.centroid[0]).toFixed(2) +
+      '°' + hemisphereLon + ' (' + fire.n_detections + ' détections)'
+    );
+  }
+
+  async function setActiveFire(fireId, options) {
+    const opts = options || {};
+    if (fireId === currentFireId && !opts.force) return;
+
+    currentFireId = fireId;
+    const base = 'data/fire-progression/fires/' + fireId + '/';
+
+    ISOCHRONES_URL = base + 'detection_envelopes.geojson';
+    FIRE_PROGRESSION_GEOJSON = base + 'fire_progression_arrival_v1.geojson';
+    FIRE_PROGRESSION_MANIFEST =
+      base + 'fire_progression_arrival_v1_manifest.json';
+
+    // Purge les couches/données du feu précédent : sans ça, les
+    // fonctions existantes (ensureIsochronesLoaded,
+    // ensureFireProgressionLoaded) croiraient être déjà chargées et
+    // garderaient le feu précédent affiché.
+    isochronesData = null;
+    fireProgressionData = null;
+    fireProgressionManifest = null;
+    fireProgressionInitialFitDone = false;
+
+    if (isochronesLayer) {
+      if (map.hasLayer(isochronesLayer)) map.removeLayer(isochronesLayer);
+      isochronesLayer = null;
+    }
+    if (fireProgressionLayer) {
+      if (map.hasLayer(fireProgressionLayer)) map.removeLayer(fireProgressionLayer);
+      fireProgressionLayer = null;
+    }
+
+    const isochronesCheckbox = document.getElementById('isochrones');
+    const isochronesOn = isochronesCheckbox ? isochronesCheckbox.checked : false;
+    const progressionOn = fireProgressionInput.checked;
+
+    if (isochronesOn) {
+      try {
+        await ensureIsochronesLoaded(true);
+      } catch (error) {
+        console.error('Emprises FIRMS (changement de feu) :', error);
+      }
+    }
+
+    if (progressionOn) {
+      try {
+        await ensureFireProgressionLoaded();
+        renderFireProgressionSnapshot(Number(fireProgressionSlider.value));
+        if (fireProgressionLayer && typeof fireProgressionLayer.getBounds === 'function') {
+          const bounds = fireProgressionLayer.getBounds();
+          if (bounds.isValid()) {
+            fireProgressionInitialFitDone = true;
+            map.fitBounds(bounds.pad(mobileView ? 0.16 : 0.10), {
+              maxZoom: mobileView ? 10 : 11,
+              animate: false
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Évolution temporelle FIRMS (changement de feu) :', error);
+      }
+    } else {
+      const fire = (firesIndexData || []).find(f => f.id === fireId);
+      if (fire) {
+        map.fitBounds(
+          [[fire.bbox[1], fire.bbox[0]], [fire.bbox[3], fire.bbox[2]]],
+          { maxZoom: mobileView ? 10 : 11, animate: false }
+        );
+      }
+    }
+  }
+
+  async function loadFiresIndex() {
+    try {
+      const response = await fetch('data/fire-progression/fires_index.json', {
+        cache: 'no-store'
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const payload = await response.json();
+      const fires = payload.fires || [];
+      if (!fires.length) return;
+
+      firesIndexData = fires;
+
+      fireSelect.innerHTML = '';
+      fires.forEach(fire => {
+        const option = document.createElement('option');
+        option.value = fire.id;
+        option.textContent = fireOptionLabel(fire);
+        fireSelect.appendChild(option);
+      });
+
+      fireSelectRow.style.display = fires.length > 1 ? 'flex' : 'none';
+
+      fireSelect.addEventListener('change', () => {
+        setActiveFire(fireSelect.value);
+      });
+
+      // Le plus soutenu par défaut (fires triés par n_detections
+      // décroissant côté pipeline).
+      fireSelect.value = fires[0].id;
+      await setActiveFire(fires[0].id, { force: true });
+    } catch (error) {
+      console.error('Index des feux indisponible :', error);
+      // Repli : les chemins par défaut déclarés plus haut pointent
+      // encore vers l'ancien feu unique, la carte reste utilisable.
+    }
+  }
+
+  // Appelé plus bas dans le script, une fois fireProgressionInput,
+  // fireProgressionSlider et fireProgressionInitialFitDone déclarés
+  // (setActiveFire en dépend) — voir l'appel à loadFiresIndex().
 
   let fireProgressionData = null;
   let fireProgressionManifest = null;
@@ -5745,6 +5913,11 @@
       }
     );
   });
+
+  // Maintenant que fireProgressionInput/Slider/Status et
+  // fireProgressionInitialFitDone existent, setActiveFire() (défini
+  // plus haut) peut s'appuyer dessus sans erreur.
+  loadFiresIndex();
 
 
   const fireProgressionExtentInput =

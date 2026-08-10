@@ -33,39 +33,37 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r pipeline/requirements.txt
 
-      - name: Cache ESA WorldCover tiles
+      - name: Restore ESA WorldCover tile cache
         uses: actions/cache@v4
         with:
-          path: pipeline/data/external/worldcover_2021_v200
-          key: worldcover-2021-v200-N42W003-N45W003-v1
+          path: pipeline/data/external/worldcover_2021_v200_cache
+          key: worldcover-france-v1-${{ github.run_id }}
+          restore-keys: |
+            worldcover-france-v1-
 
       - name: Restore cumulative FIRMS state
         uses: actions/cache@v4
         with:
           path: |
             pipeline/data/raw/firms_detections_history.csv
-            pipeline/data/processed/detection_envelopes.gpkg
+            pipeline/data/processed/fires_state
           key: firms-cumulative-state-${{ github.run_id }}
           restore-keys: |
             firms-cumulative-state-
 
-      - name: Run FIRMS progression pipeline
+      - name: Run FIRMS progression pipeline (per active fire, nationwide)
         env:
           MPLBACKEND: Agg
           FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
         run: |
-          pipeline/scripts/run_live_progression.sh
+          pipeline/scripts/run_live_progression_multi.sh
 
-      - name: Publish web exports
-        run: |
-          cp \
-            pipeline/data/web/fire_progression_arrival_v1.geojson \
-            pipeline/data/web/fire_progression_arrival_v1_manifest.json \
-            data/fire-progression/
-
-          cp \
-            pipeline/data/web/detection_envelopes.geojson \
-            detection_envelopes.geojson
+      - name: Save ESA WorldCover tile cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: pipeline/data/external/worldcover_2021_v200_cache
+          key: worldcover-france-v1-${{ github.run_id }}
 
       - name: Save cumulative FIRMS state
         uses: actions/cache/save@v4
@@ -73,15 +71,16 @@ jobs:
         with:
           path: |
             pipeline/data/raw/firms_detections_history.csv
-            pipeline/data/processed/detection_envelopes.gpkg
+            pipeline/data/processed/fires_state
           key: firms-cumulative-state-${{ github.run_id }}
 
       - name: Commit updated progression
         run: |
-          if git diff --quiet -- \
-            data/fire-progression/fire_progression_arrival_v1.geojson \
-            data/fire-progression/fire_progression_arrival_v1_manifest.json \
-            detection_envelopes.geojson
+          # run_live_progression_multi.sh écrit déjà directement dans
+          # data/fire-progression/ (index, registre, sorties par feu) :
+          # rien à copier, seulement à valider et committer.
+          if git diff --quiet -- data/fire-progression/ && \
+             [ -z "$(git status --porcelain -- data/fire-progression/)" ]
           then
             echo "Aucun nouveau passage FIRMS : aucun commit."
             exit 0
@@ -90,10 +89,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add \
-            data/fire-progression/fire_progression_arrival_v1.geojson \
-            data/fire-progression/fire_progression_arrival_v1_manifest.json \
-            detection_envelopes.geojson
+          git add data/fire-progression/
 
           git commit -m "Update FIRMS fire progression"
           git push

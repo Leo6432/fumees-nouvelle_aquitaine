@@ -5,18 +5,22 @@
 # corrélation avec le vent).
 # ============================================================
 
-project_name: fire_propagation_gironde_2026
+project_name: fire_propagation_france_2026
 
 # --- Zone et période d'étude ---------------------------------
 # bbox en WGS84 : ouest, sud, est, nord
-bbox: [-1.4, 44.4, -0.4, 45.1]      # feu de Gironde (Le Porge / Lacanau)
+# France métropolitaine + petite marge (même emprise que feuxgironde).
+# Chaque feu individuel est ensuite isolé automatiquement par le
+# clustering ci-dessous (00_detect_active_fires.py) : cette bbox ne
+# sert qu'à la requête FIRMS nationale, pas à délimiter un feu précis.
+bbox: [-5.3, 41.2, 9.7, 51.3]
 
-# Fenêtre temporelle analysée (UTC). Laisser 'auto' pour prendre
-# les dernières 48 h disponibles dans le fichier FIRMS.
+# Fenêtre temporelle analysée (UTC). 'auto' : pas de coupure de date —
+# chaque feu est déjà isolé à ses propres détections par le clustering
+# nationwide (00_detect_active_fires.py) avant d'atteindre ce filtre,
+# donc une origine codée en dur par feu n'est plus nécessaire ici.
 time_window:
-  # Origine historique du feu :
-  # 22 juillet 2026 à 14 h en France métropolitaine.
-  start: "2026-07-22T12:00:00Z"
+  start: "auto"
   end: "auto"
 
   # Fenêtre réservée aux foyers actifs affichés sur la carte.
@@ -27,11 +31,25 @@ time_window:
 crs_metric: "EPSG:2154"   # Lambert-93 (France métropolitaine)
 crs_geographic: "EPSG:4326"
 
-# --- Clustering (isoler l'incendie principal) ----------------
+# --- Clustering (isoler un incendie parmi ses propres détections) ---
+# Utilisé deux fois : une fois nationalement (00_detect_active_fires.py,
+# via max_active_fires) pour séparer les feux les uns des autres, puis à
+# nouveau par feu (03_cumulative_detection_envelopes.py, via
+# max_clusters) pour séparer d'éventuels foyers secondaires au sein d'un
+# même feu déjà isolé.
 cluster:
   radius_km: 10          # rayon d'agrégation des détections d'un même feu
   min_points: 15         # taille minimale d'un cluster retenu
-  max_clusters: 2        # incendies principaux conservés
+  max_clusters: 2        # foyers secondaires conservés au sein d'UN feu
+  max_active_fires: 20   # feux distincts conservés à l'échelle nationale
+
+  # Un feu sans aucune détection depuis ce délai n'est plus retraité
+  # (krigeage/isochrones coûteux) à chaque exécution — l'historique
+  # cumulé ne s'efface jamais, seuls d'anciens points y restent pour
+  # toujours, donc sans ce délai un feu éteint continuerait à occuper
+  # une place (et du temps de calcul) indéfiniment. Ses dernières
+  # sorties publiées restent en ligne telles quelles.
+  retire_after_days: 5
 
 # --- Grille d'analyse ----------------------------------------
 grid:
