@@ -4756,16 +4756,16 @@
     // garderaient le feu précédent affiché.
     clearSingleFireLayers();
 
-    const isochronesCheckbox = document.getElementById('isochrones');
-    const isochronesOn = isochronesCheckbox ? isochronesCheckbox.checked : false;
     const progressionOn = fireProgressionInput.checked;
 
-    if (isochronesOn) {
-      try {
-        await ensureIsochronesLoaded(true);
-      } catch (error) {
-        console.error('Emprises FIRMS (changement de feu) :', error);
-      }
+    // Toujours affiché, comme la vue d'ensemble « Tous les feux » —
+    // il n'existe pas de case à cocher séparée pour ce calque dans
+    // cette page (une ancienne tentative en ce sens, jamais reliée à
+    // aucun élément réel, a été retirée).
+    try {
+      await ensureIsochronesLoaded(true);
+    } catch (error) {
+      console.error('Emprises FIRMS (changement de feu) :', error);
     }
 
     if (progressionOn) {
