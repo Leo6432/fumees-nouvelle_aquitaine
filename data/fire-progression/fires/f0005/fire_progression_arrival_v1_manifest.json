@@ -35,29 +35,6 @@
   "snapshots": [
     {
       "snapshot_index": 1,
-      "pass_time_utc": "2026-08-05T01:43:00+00:00",
-      "dt_local": "2026-08-05T03:43:00+02:00",
-      "coherence_level": "indisponible",
-      "coherence_fraction": 0.0,
-      "projection_displayed": false,
-      "categories": []
-    },
-    {
-      "snapshot_index": 2,
-      "pass_time_utc": "2026-08-05T02:02:00+00:00",
-      "dt_local": "2026-08-05T04:02:00+02:00",
-      "coherence_level": "indisponible",
-      "coherence_fraction": 0.0,
-      "projection_displayed": false,
-      "categories": [
-        {
-          "category": "observed_front",
-          "area_km2": 2.312
-        }
-      ]
-    },
-    {
-      "snapshot_index": 3,
       "pass_time_utc": "2026-08-06T00:48:00+00:00",
       "dt_local": "2026-08-06T02:48:00+02:00",
       "coherence_level": "indisponible",
@@ -66,7 +43,7 @@
       "categories": []
     },
     {
-      "snapshot_index": 4,
+      "snapshot_index": 2,
       "pass_time_utc": "2026-08-06T01:24:00+00:00",
       "dt_local": "2026-08-06T03:24:00+02:00",
       "coherence_level": "indisponible",
@@ -84,7 +61,7 @@
       ]
     },
     {
-      "snapshot_index": 5,
+      "snapshot_index": 3,
       "pass_time_utc": "2026-08-06T01:43:00+00:00",
       "dt_local": "2026-08-06T03:43:00+02:00",
       "coherence_level": "indisponible",
@@ -106,7 +83,7 @@
       ]
     },
     {
-      "snapshot_index": 6,
+      "snapshot_index": 4,
       "pass_time_utc": "2026-08-06T02:28:00+00:00",
       "dt_local": "2026-08-06T04:28:00+02:00",
       "coherence_level": "indisponible",
@@ -128,7 +105,7 @@
       ]
     },
     {
-      "snapshot_index": 7,
+      "snapshot_index": 5,
       "pass_time_utc": "2026-08-06T03:04:00+00:00",
       "dt_local": "2026-08-06T05:04:00+02:00",
       "coherence_level": "indisponible",
@@ -150,7 +127,7 @@
       ]
     },
     {
-      "snapshot_index": 8,
+      "snapshot_index": 6,
       "pass_time_utc": "2026-08-07T00:30:00+00:00",
       "dt_local": "2026-08-07T02:30:00+02:00",
       "coherence_level": "indisponible",
@@ -172,7 +149,7 @@
       ]
     },
     {
-      "snapshot_index": 9,
+      "snapshot_index": 7,
       "pass_time_utc": "2026-08-07T01:07:00+00:00",
       "dt_local": "2026-08-07T03:07:00+02:00",
       "coherence_level": "indisponible",
@@ -194,7 +171,7 @@
       ]
     },
     {
-      "snapshot_index": 10,
+      "snapshot_index": 8,
       "pass_time_utc": "2026-08-07T01:24:00+00:00",
       "dt_local": "2026-08-07T03:24:00+02:00",
       "coherence_level": "indisponible",
@@ -216,7 +193,7 @@
       ]
     },
     {
-      "snapshot_index": 11,
+      "snapshot_index": 9,
       "pass_time_utc": "2026-08-07T02:11:00+00:00",
       "dt_local": "2026-08-07T04:11:00+02:00",
       "coherence_level": "indisponible",
@@ -238,7 +215,7 @@
       ]
     },
     {
-      "snapshot_index": 12,
+      "snapshot_index": 10,
       "pass_time_utc": "2026-08-07T02:45:00+00:00",
       "dt_local": "2026-08-07T04:45:00+02:00",
       "coherence_level": "indisponible",
@@ -260,7 +237,7 @@
       ]
     },
     {
-      "snapshot_index": 13,
+      "snapshot_index": 11,
       "pass_time_utc": "2026-08-07T03:04:00+00:00",
       "dt_local": "2026-08-07T05:04:00+02:00",
       "coherence_level": "indisponible",
@@ -282,7 +259,7 @@
       ]
     },
     {
-      "snapshot_index": 14,
+      "snapshot_index": 12,
       "pass_time_utc": "2026-08-07T12:32:00+00:00",
       "dt_local": "2026-08-07T14:32:00+02:00",
       "coherence_level": "indisponible",
@@ -304,7 +281,7 @@
       ]
     },
     {
-      "snapshot_index": 15,
+      "snapshot_index": 13,
       "pass_time_utc": "2026-08-08T00:45:00+00:00",
       "dt_local": "2026-08-08T02:45:00+02:00",
       "coherence_level": "indisponible",
@@ -326,7 +303,7 @@
       ]
     },
     {
-      "snapshot_index": 16,
+      "snapshot_index": 14,
       "pass_time_utc": "2026-08-08T01:05:00+00:00",
       "dt_local": "2026-08-08T03:05:00+02:00",
       "coherence_level": "indisponible",
@@ -348,7 +325,7 @@
       ]
     },
     {
-      "snapshot_index": 17,
+      "snapshot_index": 15,
       "pass_time_utc": "2026-08-08T01:52:00+00:00",
       "dt_local": "2026-08-08T03:52:00+02:00",
       "coherence_level": "indisponible",
@@ -370,7 +347,7 @@
       ]
     },
     {
-      "snapshot_index": 18,
+      "snapshot_index": 16,
       "pass_time_utc": "2026-08-08T02:45:00+00:00",
       "dt_local": "2026-08-08T04:45:00+02:00",
       "coherence_level": "indisponible",
@@ -392,7 +369,7 @@
       ]
     },
     {
-      "snapshot_index": 19,
+      "snapshot_index": 17,
       "pass_time_utc": "2026-08-08T12:14:00+00:00",
       "dt_local": "2026-08-08T14:14:00+02:00",
       "coherence_level": "indisponible",
@@ -414,7 +391,7 @@
       ]
     },
     {
-      "snapshot_index": 20,
+      "snapshot_index": 18,
       "pass_time_utc": "2026-08-09T00:45:00+00:00",
       "dt_local": "2026-08-09T02:45:00+02:00",
       "coherence_level": "indisponible",
@@ -436,7 +413,7 @@
       ]
     },
     {
-      "snapshot_index": 21,
+      "snapshot_index": 19,
       "pass_time_utc": "2026-08-09T01:32:00+00:00",
       "dt_local": "2026-08-09T03:32:00+02:00",
       "coherence_level": "indisponible",
@@ -458,7 +435,7 @@
       ]
     },
     {
-      "snapshot_index": 22,
+      "snapshot_index": 20,
       "pass_time_utc": "2026-08-09T02:09:00+00:00",
       "dt_local": "2026-08-09T04:09:00+02:00",
       "coherence_level": "indisponible",
