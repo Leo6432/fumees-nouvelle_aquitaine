@@ -4196,6 +4196,28 @@
     );
   }
 
+  // Style partagé par la vue d'un seul feu et par la vue d'ensemble
+  // « Tous les feux » : un feu qui grandit peu d'une étape à l'autre
+  // (contours quasi superposés) a besoin d'un plancher d'opacité et
+  // d'épaisseur assez haut pour que les étapes anciennes restent
+  // visibles sous la dernière — sinon celle-ci (pleine, épaisse)
+  // les masque complètement, quel que soit le dégradé de couleur en
+  // dessous.
+  function isochroneFeatureStyle(feature) {
+    const p = feature.properties || {};
+    const progress = Number(p._display_progress) || 0;
+    const latest = Boolean(p._is_latest);
+
+    return {
+      color: latest ? '#d7191c' : envelopeColor(progress),
+      weight: latest ? 2.6 : 1.8 + 1.0 * progress,
+      opacity: latest ? 0.9 : 0.5 + 0.4 * progress,
+      lineCap: 'round',
+      lineJoin: 'round',
+      interactive: true
+    };
+  }
+
   function geometryLines(geometry) {
     if (!geometry) return [];
 
@@ -4458,21 +4480,7 @@
       isochronesLayer = L.geoJSON(displayData, {
         pane: 'isochrones',
         smoothFactor: 1.7,
-        style: feature => {
-          const p = feature.properties || {};
-          const progress = Number(p._display_progress) || 0;
-          const latest = Boolean(p._is_latest);
-
-          return {
-            color: latest ? '#d7191c' : envelopeColor(progress),
-            weight: latest ? 3.0 : 1.0 + 0.8 * progress,
-            opacity: latest ? 0.95 : 0.16 + 0.34 * progress,
-            dashArray: latest ? null : '2 6',
-            lineCap: 'round',
-            lineJoin: 'round',
-            interactive: true
-          };
-        },
+        style: isochroneFeatureStyle,
         onEachFeature: (feature, layer) => {
           const p = feature.properties || {};
           const latest = Boolean(p._is_latest);
@@ -4671,21 +4679,7 @@
       {
         pane: 'isochrones',
         smoothFactor: 1.7,
-        style: feature => {
-          const p = feature.properties || {};
-          const progress = Number(p._display_progress) || 0;
-          const latest = Boolean(p._is_latest);
-
-          return {
-            color: latest ? '#d7191c' : envelopeColor(progress),
-            weight: latest ? 3.0 : 1.0 + 0.8 * progress,
-            opacity: latest ? 0.95 : 0.16 + 0.34 * progress,
-            dashArray: latest ? null : '2 6',
-            lineCap: 'round',
-            lineJoin: 'round',
-            interactive: true
-          };
-        },
+        style: isochroneFeatureStyle,
         onEachFeature: (feature, layer) => {
           const p = feature.properties || {};
           const latest = Boolean(p._is_latest);
