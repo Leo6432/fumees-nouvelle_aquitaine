@@ -4565,6 +4565,9 @@
   // sur le feu choisi, sans dupliquer leur logique de rendu.
   let firesIndexData = null;
   let currentFireId = null;
+  let allFiresOverviewLayer = null;
+
+  const ALL_FIRES_ID = '__all__';
 
   const fireSelectRow = document.getElementById('fire-select-row');
   const fireSelect = document.getElementById('fire-select');
@@ -4579,22 +4582,7 @@
     );
   }
 
-  async function setActiveFire(fireId, options) {
-    const opts = options || {};
-    if (fireId === currentFireId && !opts.force) return;
-
-    currentFireId = fireId;
-    const base = 'data/fire-progression/fires/' + fireId + '/';
-
-    ISOCHRONES_URL = base + 'detection_envelopes.geojson';
-    FIRE_PROGRESSION_GEOJSON = base + 'fire_progression_arrival_v1.geojson';
-    FIRE_PROGRESSION_MANIFEST =
-      base + 'fire_progression_arrival_v1_manifest.json';
-
-    // Purge les couches/données du feu précédent : sans ça, les
-    // fonctions existantes (ensureIsochronesLoaded,
-    // ensureFireProgressionLoaded) croiraient être déjà chargées et
-    // garderaient le feu précédent affiché.
+  function clearSingleFireLayers() {
     isochronesData = null;
     fireProgressionData = null;
     fireProgressionManifest = null;
@@ -4608,6 +4596,127 @@
       if (map.hasLayer(fireProgressionLayer)) map.removeLayer(fireProgressionLayer);
       fireProgressionLayer = null;
     }
+  }
+
+  // Vue d'ensemble : la dernière emprise détectée de CHAQUE feu, sans
+  // curseur temporel (chaque feu a sa propre chronologie de passages
+  // satellite, indépendante des autres — les superposer sur un seul
+  // curseur n'aurait pas de sens). Pour le détail animé d'un feu
+  // précis, voir setActiveFire() ci-dessous.
+  async function showAllFiresOverview() {
+    if (allFiresOverviewLayer) {
+      if (map.hasLayer(allFiresOverviewLayer)) map.removeLayer(allFiresOverviewLayer);
+      allFiresOverviewLayer = null;
+    }
+
+    const fires = firesIndexData || [];
+    if (!fires.length) return;
+
+    const results = await Promise.all(fires.map(async fire => {
+      try {
+        const response = await fetch(
+          'data/fire-progression/fires/' + fire.id + '/detection_envelopes.geojson',
+          { cache: 'no-store' }
+        );
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        const features = data.features || [];
+
+        // La dernière étape de chaque foyer secondaire (cluster_id
+        // local à ce feu, pas un id global) de ce fichier.
+        const latestByCluster = new Map();
+        features.forEach(feature => {
+          const p = feature.properties || {};
+          const clusterId = Number(p.cluster_id);
+          const snapshotIndex = Number(p.snapshot_index);
+          if (!Number.isFinite(clusterId) || !Number.isFinite(snapshotIndex)) return;
+          const current = latestByCluster.get(clusterId);
+          if (!current || snapshotIndex > Number(current.properties.snapshot_index)) {
+            latestByCluster.set(clusterId, feature);
+          }
+        });
+
+        return Array.from(latestByCluster.values()).map(feature => ({
+          ...feature,
+          properties: { ...feature.properties, _fire_id: fire.id, _fire: fire }
+        }));
+      } catch (error) {
+        console.error('Vue d’ensemble (feu ' + fire.id + ') :', error);
+        return [];
+      }
+    }));
+
+    const combinedFeatures = results.flat();
+    if (!combinedFeatures.length) return;
+
+    allFiresOverviewLayer = L.geoJSON(
+      { type: 'FeatureCollection', features: combinedFeatures },
+      {
+        pane: 'isochrones',
+        smoothFactor: 1.7,
+        style: { color: '#d7191c', weight: 2.5, opacity: 0.9, lineCap: 'round', lineJoin: 'round' },
+        onEachFeature: (feature, layer) => {
+          const p = feature.properties || {};
+          const date = formatObservationDate(p.observed_until_utc);
+          layer.bindTooltip(
+            '<b>Feu</b> · ' + escapeHtml(p._fire ? fireOptionLabel(p._fire) : '') +
+            '<br>Dernière observation : ' + escapeHtml(date) +
+            '<br><small>Ni surface brûlée ni front continu.</small>',
+            { sticky: true, opacity: 0.96 }
+          );
+          layer.on('click', () => {
+            fireSelect.value = p._fire_id;
+            setActiveFire(p._fire_id);
+          });
+        }
+      }
+    ).addTo(map);
+
+    const bounds = allFiresOverviewLayer.getBounds();
+    if (bounds.isValid()) {
+      map.fitBounds(bounds.pad(mobileView ? 0.16 : 0.10), {
+        maxZoom: mobileView ? 8 : 9,
+        animate: false
+      });
+    }
+  }
+
+  async function setActiveFire(fireId, options) {
+    const opts = options || {};
+    if (fireId === currentFireId && !opts.force) return;
+
+    currentFireId = fireId;
+
+    if (fireId === ALL_FIRES_ID) {
+      clearSingleFireLayers();
+      fireProgressionInput.checked = false;
+      fireProgressionInput.disabled = true;
+      fireProgressionControls.classList.remove('is-visible');
+      // Le panneau reste visible : il héberge le sélecteur de feu,
+      // utile même en vue d'ensemble sans évolution animée.
+      await showAllFiresOverview();
+      return;
+    }
+
+    fireProgressionInput.disabled = false;
+
+    if (allFiresOverviewLayer) {
+      if (map.hasLayer(allFiresOverviewLayer)) map.removeLayer(allFiresOverviewLayer);
+      allFiresOverviewLayer = null;
+    }
+
+    const base = 'data/fire-progression/fires/' + fireId + '/';
+
+    ISOCHRONES_URL = base + 'detection_envelopes.geojson';
+    FIRE_PROGRESSION_GEOJSON = base + 'fire_progression_arrival_v1.geojson';
+    FIRE_PROGRESSION_MANIFEST =
+      base + 'fire_progression_arrival_v1_manifest.json';
+
+    // Purge les couches/données du feu précédent : sans ça, les
+    // fonctions existantes (ensureIsochronesLoaded,
+    // ensureFireProgressionLoaded) croiraient être déjà chargées et
+    // garderaient le feu précédent affiché.
+    clearSingleFireLayers();
 
     const isochronesCheckbox = document.getElementById('isochrones');
     const isochronesOn = isochronesCheckbox ? isochronesCheckbox.checked : false;
@@ -4662,6 +4771,12 @@
       firesIndexData = fires;
 
       fireSelect.innerHTML = '';
+
+      const allOption = document.createElement('option');
+      allOption.value = ALL_FIRES_ID;
+      allOption.textContent = 'Tous les feux (' + fires.length + ')';
+      fireSelect.appendChild(allOption);
+
       fires.forEach(fire => {
         const option = document.createElement('option');
         option.value = fire.id;
@@ -4669,16 +4784,22 @@
         fireSelect.appendChild(option);
       });
 
-      fireSelectRow.style.display = fires.length > 1 ? 'flex' : 'none';
+      fireSelectRow.style.display = 'flex';
+
+      // Le panneau (et donc le sélecteur de feu) doit rester visible
+      // même quand « Évolution observée du feu » est décoché ou
+      // désactivé (vue d'ensemble) — sinon le sélecteur serait
+      // inaccessible par défaut, puisque ce panneau est normalement
+      // masqué tant que cette case n'est pas cochée.
+      fireProgressionPanel.classList.add('is-visible');
 
       fireSelect.addEventListener('change', () => {
         setActiveFire(fireSelect.value);
       });
 
-      // Le plus soutenu par défaut (fires triés par n_detections
-      // décroissant côté pipeline).
-      fireSelect.value = fires[0].id;
-      await setActiveFire(fires[0].id, { force: true });
+      // Vue d'ensemble de tous les feux par défaut.
+      fireSelect.value = ALL_FIRES_ID;
+      await setActiveFire(ALL_FIRES_ID, { force: true });
     } catch (error) {
       console.error('Index des feux indisponible :', error);
       // Repli : les chemins par défaut déclarés plus haut pointent
@@ -5781,10 +5902,9 @@
         'is-visible'
       );
 
-
-      fireProgressionPanel.classList.remove(
-        'is-visible'
-      );
+      // Le panneau lui-même reste visible : il héberge aussi le
+      // sélecteur de feu (data/fire-progression/fires_index.json),
+      // utile même sans l'évolution animée.
 
       if (fireProgressionLayer) {
         map.removeLayer(
@@ -5937,34 +6057,11 @@
     }
   );
 
-  // Vue d’arrivée : afficher directement la dernière observation.
-  // Aucune lecture automatique n’est lancée.
-  fireProgressionInput.checked = true;
-
-  toggleFireProgression()
-    .then(() => {
-      stopFireProgressionPlayback();
-
-      if (
-        fireProgressionSnapshots.length
-      ) {
-        const latestIndex =
-          fireProgressionSnapshots.length - 1;
-
-        fireProgressionSlider.value =
-          String(latestIndex);
-
-        renderFireProgressionSnapshot(
-          latestIndex
-        );
-      }
-    })
-    .catch(error => {
-      console.error(
-        'Chargement initial de l’évolution observée :',
-        error
-      );
-    });
+  // L'affichage initial (vue d'ensemble de tous les feux, ou détail
+  // d'un feu précis) est piloté par loadFiresIndex()/setActiveFire()
+  // plus haut, qui appelle déjà ensureFireProgressionLoaded() au
+  // besoin — celle-ci positionne elle-même le curseur sur la
+  // dernière observation. Rien à déclencher ici.
 
   // ---- Projection locale du point sur chaque segment, en kilomètres ----
   function localXY(lon, lat, lat0) {
