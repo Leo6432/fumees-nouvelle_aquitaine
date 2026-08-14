@@ -286,6 +286,24 @@
     },
     {
       "snapshot_index": 14,
+      "pass_time_utc": "2026-08-14T12:00:00+00:00",
+      "dt_local": "2026-08-14T14:00:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 388
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 30.562
+        }
+      ]
+    },
+    {
+      "snapshot_index": 15,
       "pass_time_utc": "2026-08-14T12:19:00+00:00",
       "dt_local": "2026-08-14T14:19:00+02:00",
       "coherence_level": "indisponible",
@@ -294,7 +312,7 @@
       "categories": [
         {
           "category": "firms_extent_snapshot",
-          "point_count": 426
+          "point_count": 388
         },
         {
           "category": "historical_support",
@@ -303,6 +321,46 @@
         {
           "category": "observed_front",
           "area_km2": 8.688
+        }
+      ]
+    },
+    {
+      "snapshot_index": 16,
+      "pass_time_utc": "2026-08-14T13:04:00+00:00",
+      "dt_local": "2026-08-14T15:04:00+02:00",
+      "coherence_level": "moyenne",
+      "coherence_fraction": 1.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 388
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 30.812
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 3.688
+        }
+      ]
+    },
+    {
+      "snapshot_index": 17,
+      "pass_time_utc": "2026-08-14T13:40:00+00:00",
+      "dt_local": "2026-08-14T15:40:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 454
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 30.812
         }
       ]
     }
