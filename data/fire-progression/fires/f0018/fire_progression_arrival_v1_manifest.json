@@ -1,0 +1,81 @@
+{
+  "model_version": "fire_progression_arrival_v1",
+  "description": "Évolution observée des détections FIRMS, représentée par l’âge de première détection.",
+  "display_layers": [
+    "firms_extent_snapshot",
+    "arrival_surface",
+    "temporal_isolines",
+    "observed_front",
+    "plausible_front_1h"
+  ],
+  "projection": {
+    "horizon_h": 1,
+    "speed_scale": 0.25,
+    "recursive": false
+  },
+  "land_water_mask": {
+    "enabled": true,
+    "worldcover_product": "ESA WorldCover 2021 v200",
+    "worldcover_tiles": [
+      "ESA_WorldCover_10m_2021_v200_N45E000_Map.tif",
+      "ESA_WorldCover_10m_2021_v200_N45W003_Map.tif"
+    ],
+    "land_fraction_threshold": 0.5,
+    "raster_layers_resolution_m": 250.0,
+    "firms_extent_resolution_m": 25.0,
+    "water_boundary_simplify_m": 50.0,
+    "minimum_water_component_area_m2": 10000.0,
+    "firms_mask_method": "vector_water_subtraction_v3",
+    "water_classes": [
+      0,
+      80
+    ],
+    "scientific_geometries_modified": false
+  },
+  "snapshots": [
+    {
+      "snapshot_index": 1,
+      "pass_time_utc": "2026-08-18T12:46:00+00:00",
+      "dt_local": "2026-08-18T14:46:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 6
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 7.25
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 7.25
+        }
+      ]
+    },
+    {
+      "snapshot_index": 2,
+      "pass_time_utc": "2026-08-22T12:53:00+00:00",
+      "dt_local": "2026-08-22T14:53:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 15
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 7.875
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 4.688
+        }
+      ]
+    }
+  ]
+}
