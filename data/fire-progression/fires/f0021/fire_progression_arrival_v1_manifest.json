@@ -273,6 +273,50 @@
           "area_km2": 2.812
         }
       ]
+    },
+    {
+      "snapshot_index": 12,
+      "pass_time_utc": "2026-09-04T01:02:00+00:00",
+      "dt_local": "2026-09-04T03:02:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 36
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 8.938
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 3.5
+        }
+      ]
+    },
+    {
+      "snapshot_index": 13,
+      "pass_time_utc": "2026-09-04T01:45:00+00:00",
+      "dt_local": "2026-09-04T03:45:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 41
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 8.938
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 2.5
+        }
+      ]
     }
   ]
 }
