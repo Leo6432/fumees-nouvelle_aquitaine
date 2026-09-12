@@ -590,7 +590,7 @@
       "categories": [
         {
           "category": "firms_extent_snapshot",
-          "point_count": 85
+          "point_count": 82
         },
         {
           "category": "historical_support",
@@ -599,6 +599,24 @@
         {
           "category": "observed_front",
           "area_km2": 1.188
+        }
+      ]
+    },
+    {
+      "snapshot_index": 28,
+      "pass_time_utc": "2026-09-12T02:36:00+00:00",
+      "dt_local": "2026-09-12T04:36:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 86
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 7.125
         }
       ]
     }
