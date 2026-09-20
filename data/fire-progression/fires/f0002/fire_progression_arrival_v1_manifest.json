@@ -863,6 +863,28 @@
           "area_km2": 4.0
         }
       ]
+    },
+    {
+      "snapshot_index": 39,
+      "pass_time_utc": "2026-09-20T11:30:00+00:00",
+      "dt_local": "2026-09-20T13:30:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 173
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 10.188
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 4.375
+        }
+      ]
     }
   ]
 }
