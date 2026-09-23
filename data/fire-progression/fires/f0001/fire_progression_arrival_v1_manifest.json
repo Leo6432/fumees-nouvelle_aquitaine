@@ -471,7 +471,7 @@
       "categories": [
         {
           "category": "firms_extent_snapshot",
-          "point_count": 99
+          "point_count": 70
         },
         {
           "category": "historical_support",
@@ -480,6 +480,72 @@
         {
           "category": "observed_front",
           "area_km2": 5.375
+        }
+      ]
+    },
+    {
+      "snapshot_index": 23,
+      "pass_time_utc": "2026-09-23T02:28:00+00:00",
+      "dt_local": "2026-09-23T04:28:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 70
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 9.062
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 6.938
+        }
+      ]
+    },
+    {
+      "snapshot_index": 24,
+      "pass_time_utc": "2026-09-23T03:04:00+00:00",
+      "dt_local": "2026-09-23T05:04:00+02:00",
+      "coherence_level": "faible",
+      "coherence_fraction": 1.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 70
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 9.062
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 6.75
+        }
+      ]
+    },
+    {
+      "snapshot_index": 25,
+      "pass_time_utc": "2026-09-23T03:23:00+00:00",
+      "dt_local": "2026-09-23T05:23:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 127
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 9.062
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 3.625
         }
       ]
     }
