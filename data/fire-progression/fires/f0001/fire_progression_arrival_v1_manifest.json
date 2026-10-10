@@ -365,6 +365,28 @@
     },
     {
       "snapshot_index": 16,
+      "pass_time_utc": "2026-10-10T01:05:00+00:00",
+      "dt_local": "2026-10-10T03:05:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 72
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 10.812
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 6.5
+        }
+      ]
+    },
+    {
+      "snapshot_index": 17,
       "pass_time_utc": "2026-10-10T01:26:00+00:00",
       "dt_local": "2026-10-10T03:26:00+02:00",
       "coherence_level": "indisponible",
@@ -386,7 +408,7 @@
       ]
     },
     {
-      "snapshot_index": 17,
+      "snapshot_index": 18,
       "pass_time_utc": "2026-10-10T02:11:00+00:00",
       "dt_local": "2026-10-10T04:11:00+02:00",
       "coherence_level": "indisponible",
@@ -408,7 +430,29 @@
       ]
     },
     {
-      "snapshot_index": 18,
+      "snapshot_index": 19,
+      "pass_time_utc": "2026-10-10T02:45:00+00:00",
+      "dt_local": "2026-10-10T04:45:00+02:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 72
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 11.5
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 6.188
+        }
+      ]
+    },
+    {
+      "snapshot_index": 20,
       "pass_time_utc": "2026-10-10T03:06:00+00:00",
       "dt_local": "2026-10-10T05:06:00+02:00",
       "coherence_level": "indisponible",
@@ -417,7 +461,7 @@
       "categories": [
         {
           "category": "firms_extent_snapshot",
-          "point_count": 98
+          "point_count": 115
         },
         {
           "category": "historical_support",
