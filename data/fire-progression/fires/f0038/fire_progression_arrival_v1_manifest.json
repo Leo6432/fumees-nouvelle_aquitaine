@@ -34,49 +34,8 @@
   "snapshots": [
     {
       "snapshot_index": 1,
-      "pass_time_utc": "2026-10-14T12:57:00+00:00",
-      "dt_local": "2026-10-14T14:57:00+02:00",
-      "coherence_level": "indisponible",
-      "coherence_fraction": 0.0,
-      "projection_displayed": false,
-      "categories": []
-    },
-    {
-      "snapshot_index": 2,
-      "pass_time_utc": "2026-10-14T13:18:00+00:00",
-      "dt_local": "2026-10-14T15:18:00+02:00",
-      "coherence_level": "indisponible",
-      "coherence_fraction": 0.0,
-      "projection_displayed": false,
-      "categories": [
-        {
-          "category": "observed_front",
-          "area_km2": 1.812
-        }
-      ]
-    },
-    {
-      "snapshot_index": 3,
-      "pass_time_utc": "2026-10-15T12:02:00+00:00",
-      "dt_local": "2026-10-15T14:02:00+02:00",
-      "coherence_level": "indisponible",
-      "coherence_fraction": 0.0,
-      "projection_displayed": false,
-      "categories": [
-        {
-          "category": "firms_extent_snapshot",
-          "point_count": 2
-        },
-        {
-          "category": "observed_front",
-          "area_km2": 2.312
-        }
-      ]
-    },
-    {
-      "snapshot_index": 4,
-      "pass_time_utc": "2026-10-15T12:38:00+00:00",
-      "dt_local": "2026-10-15T14:38:00+02:00",
+      "pass_time_utc": "2026-10-26T09:02:00+00:00",
+      "dt_local": "2026-10-26T10:02:00+01:00",
       "coherence_level": "indisponible",
       "coherence_fraction": 0.0,
       "projection_displayed": false,
@@ -87,51 +46,7 @@
         },
         {
           "category": "historical_support",
-          "area_km2": 2.625
-        },
-        {
-          "category": "observed_front",
-          "area_km2": 6.25
-        }
-      ]
-    },
-    {
-      "snapshot_index": 5,
-      "pass_time_utc": "2026-10-15T12:57:00+00:00",
-      "dt_local": "2026-10-15T14:57:00+02:00",
-      "coherence_level": "indisponible",
-      "coherence_fraction": 0.0,
-      "projection_displayed": false,
-      "categories": [
-        {
-          "category": "firms_extent_snapshot",
-          "point_count": 5
-        },
-        {
-          "category": "historical_support",
-          "area_km2": 4.812
-        },
-        {
-          "category": "observed_front",
-          "area_km2": 4.312
-        }
-      ]
-    },
-    {
-      "snapshot_index": 6,
-      "pass_time_utc": "2026-10-16T09:07:00+00:00",
-      "dt_local": "2026-10-16T11:07:00+02:00",
-      "coherence_level": "indisponible",
-      "coherence_fraction": 0.0,
-      "projection_displayed": false,
-      "categories": [
-        {
-          "category": "firms_extent_snapshot",
-          "point_count": 8
-        },
-        {
-          "category": "historical_support",
-          "area_km2": 4.812
+          "area_km2": 3.625
         },
         {
           "category": "observed_front",
@@ -140,53 +55,75 @@
       ]
     },
     {
-      "snapshot_index": 7,
-      "pass_time_utc": "2026-10-16T12:19:00+00:00",
-      "dt_local": "2026-10-16T14:19:00+02:00",
+      "snapshot_index": 2,
+      "pass_time_utc": "2026-10-26T11:55:00+00:00",
+      "dt_local": "2026-10-26T12:55:00+01:00",
       "coherence_level": "indisponible",
       "coherence_fraction": 0.0,
       "projection_displayed": false,
       "categories": [
         {
           "category": "firms_extent_snapshot",
-          "point_count": 8
+          "point_count": 2
         },
         {
           "category": "historical_support",
-          "area_km2": 4.812
+          "area_km2": 3.625
         },
         {
           "category": "observed_front",
-          "area_km2": 2.562
+          "area_km2": 2.5
         }
       ]
     },
     {
-      "snapshot_index": 8,
-      "pass_time_utc": "2026-10-16T12:40:00+00:00",
-      "dt_local": "2026-10-16T14:40:00+02:00",
+      "snapshot_index": 3,
+      "pass_time_utc": "2026-10-26T12:32:00+00:00",
+      "dt_local": "2026-10-26T13:32:00+01:00",
       "coherence_level": "indisponible",
       "coherence_fraction": 0.0,
       "projection_displayed": false,
       "categories": [
         {
           "category": "firms_extent_snapshot",
-          "point_count": 8
+          "point_count": 2
         },
         {
           "category": "historical_support",
-          "area_km2": 7.375
+          "area_km2": 3.875
         },
         {
           "category": "observed_front",
-          "area_km2": 2.562
+          "area_km2": 2.438
         }
       ]
     },
     {
-      "snapshot_index": 9,
-      "pass_time_utc": "2026-10-16T13:25:00+00:00",
-      "dt_local": "2026-10-16T15:25:00+02:00",
+      "snapshot_index": 4,
+      "pass_time_utc": "2026-10-26T12:51:00+00:00",
+      "dt_local": "2026-10-26T13:51:00+01:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 2
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 3.875
+        },
+        {
+          "category": "observed_front",
+          "area_km2": 2.438
+        }
+      ]
+    },
+    {
+      "snapshot_index": 5,
+      "pass_time_utc": "2026-10-26T13:36:00+00:00",
+      "dt_local": "2026-10-26T14:36:00+01:00",
       "coherence_level": "indisponible",
       "coherence_fraction": 0.0,
       "projection_displayed": false,
@@ -197,11 +134,29 @@
         },
         {
           "category": "historical_support",
-          "area_km2": 8.125
+          "area_km2": 3.875
         },
         {
           "category": "observed_front",
-          "area_km2": 2.312
+          "area_km2": 2.5
+        }
+      ]
+    },
+    {
+      "snapshot_index": 6,
+      "pass_time_utc": "2026-10-27T12:34:00+00:00",
+      "dt_local": "2026-10-27T13:34:00+01:00",
+      "coherence_level": "indisponible",
+      "coherence_fraction": 0.0,
+      "projection_displayed": false,
+      "categories": [
+        {
+          "category": "firms_extent_snapshot",
+          "point_count": 14
+        },
+        {
+          "category": "historical_support",
+          "area_km2": 3.875
         }
       ]
     }
